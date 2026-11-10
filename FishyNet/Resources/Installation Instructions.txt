@@ -1,6 +1,0 @@
-FISHYNET INSTALLATION INSTRUCTIONS:
-
-1. Run the FishyNet MSI installer (FishyNet-<version>-win-x64.msi) to install FishyNet.
-2. Install Npcap from https://npcap.com/ (ensure "Install Npcap in WinPcap API-compatible Mode" is checked).
-3. Launch FishyNet from your Start Menu or Desktop. FishyNet will automatically prompt for administrator privileges required for raw packet inspection.
-4. Enjoy shaping and monitoring your LAN bandwidth!
