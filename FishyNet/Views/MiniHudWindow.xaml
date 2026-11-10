@@ -1,0 +1,132 @@
+<Window x:Class="FishyNet.Views.MiniHudWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="FishyNet Mini HUD"
+        Width="640"
+        Height="46"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        WindowStartupLocation="Manual"
+        SnapsToDevicePixels="True"
+        UseLayoutRounding="True">
+
+    <Border Background="#E6070A10"
+            BorderBrush="{StaticResource BorderSubtleBrush}"
+            BorderThickness="1"
+            CornerRadius="6"
+            Padding="10,4"
+            MouseLeftButtonDown="OnHeaderMouseLeftButtonDown"
+            Cursor="SizeAll">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="18" ShadowDepth="3" Opacity="0.55" Color="#000000" />
+        </Border.Effect>
+
+        <Grid VerticalAlignment="Center">
+            <Grid.ColumnDefinitions>
+                <!-- Brand & Drag Handle -->
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="10" />
+                <!-- Download -->
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="12" />
+                <!-- Upload -->
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="12" />
+                <!-- Ping -->
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="12" />
+                <!-- Online hosts -->
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <!-- Boost Button & Actions -->
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Brand Drag Badge -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                <Border Background="#142E28" BorderBrush="#10B981" BorderThickness="1" CornerRadius="3" Padding="5,2" Margin="0,0,6,0">
+                    <TextBlock Text="HUD" FontFamily="{StaticResource MonoFont}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" />
+                </Border>
+                <TextBlock Text="FISHYNET" FontSize="11.5" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <!-- Live LAN Download -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="▼ " FontSize="11" Foreground="{StaticResource AccentSkyBrush}" FontWeight="Bold" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding TotalDownloadText}" FontFamily="{StaticResource MonoFont}" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <!-- Live LAN Upload -->
+            <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="▲ " FontSize="11" Foreground="{StaticResource AccentVioletBrush}" FontWeight="Bold" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding TotalUploadText}" FontFamily="{StaticResource MonoFont}" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource AccentVioletBrush}" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <!-- Gateway Ping RTT -->
+            <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Center">
+                <Border Width="6" Height="6" CornerRadius="3" Background="{StaticResource AccentEmeraldBrush}" Margin="0,0,5,0" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding GatewayLatencyText}" FontFamily="{StaticResource MonoFont}" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource AccentEmeraldBrush}" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <!-- Hosts Count -->
+            <StackPanel Grid.Column="8" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="Hosts: " FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding OnlineDevicesCount}" FontFamily="{StaticResource MonoFont}" FontSize="11.5" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <!-- Right Controls: Boost Button & Full Dashboard Toggle -->
+            <StackPanel Grid.Column="10" Orientation="Horizontal" VerticalAlignment="Center">
+                <!-- 1-Click Gaming Boost Toggle Button -->
+                <Button Command="{Binding ToggleGamingBoostCommand}"
+                        Padding="9,3"
+                        Margin="0,0,6,0"
+                        FontSize="11"
+                        FontWeight="Bold"
+                        Cursor="Hand"
+                        ToolTip="1-Click Gaming Priority: Throttles all other LAN devices to 64 KB/s to preserve gaming latency. Click again to restore.">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+                            <Setter Property="Background" Value="#1C2D42" />
+                            <Setter Property="BorderBrush" Value="#38BDF8" />
+                            <Setter Property="Foreground" Value="#38BDF8" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsGamingBoostActive}" Value="True">
+                                    <Setter Property="Background" Value="#A16207" />
+                                    <Setter Property="BorderBrush" Value="#F59E0B" />
+                                    <Setter Property="Foreground" Value="#FEF08A" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="⚡ " FontSize="11" />
+                        <TextBlock Text="{Binding GamingBoostButtonText}" />
+                    </StackPanel>
+                </Button>
+
+                <!-- Restore / Maximize Full App -->
+                <Button Content="⛶ Dashboard"
+                        Click="OnRestoreFullWindowClicked"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Padding="7,3"
+                        FontSize="11"
+                        Margin="0,0,4,0"
+                        Cursor="Hand"
+                        ToolTip="Restore FishyNet main window dashboard" />
+
+                <!-- Close HUD -->
+                <Button Content="✕"
+                        Click="OnCloseHudClicked"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Padding="7,3"
+                        FontSize="11"
+                        Cursor="Hand"
+                        ToolTip="Close Mini HUD and return to main window" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

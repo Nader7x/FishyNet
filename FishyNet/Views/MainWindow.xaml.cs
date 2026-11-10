@@ -23,6 +23,7 @@ public partial class MainWindow : Window
     private static extern int DwmSetWindowAttribute(nint hwnd, int attr, ref int attrValue, int attrSize);
 
     private readonly MainViewModel _viewModel;
+    private MiniHudWindow? _miniHudWindow;
     private bool _isExplicitExit;
     private bool _hasShownTrayNotice;
 
@@ -35,9 +36,33 @@ public partial class MainWindow : Window
 
         _viewModel.RequestShowWindow += RestoreFromTray;
         _viewModel.RequestExplicitExit += PerformExplicitExit;
+        _viewModel.RequestMinimize += () => WindowState = WindowState.Minimized;
+        _viewModel.RequestMaximizeRestore += () => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+        _viewModel.RequestClose += Close;
+        _viewModel.RequestMiniHudVisibilityChanged += OnMiniHudVisibilityChanged;
 
         SourceInitialized += OnWindowSourceInitialized;
         Loaded += OnWindowLoaded;
+    }
+
+    private void OnMiniHudVisibilityChanged(bool show)
+    {
+        if (show)
+        {
+            if (_miniHudWindow is null)
+            {
+                _miniHudWindow = new MiniHudWindow(_viewModel);
+                _miniHudWindow.Closed += (_, _) => _miniHudWindow = null;
+            }
+            _miniHudWindow.Show();
+            _miniHudWindow.Activate();
+            WindowState = WindowState.Minimized;
+        }
+        else
+        {
+            _miniHudWindow?.Hide();
+            RestoreFromTray();
+        }
     }
 
     private void OnWindowSourceInitialized(object? sender, EventArgs e)
@@ -155,7 +180,22 @@ public partial class MainWindow : Window
     public void PerformExplicitExit()
     {
         _isExplicitExit = true;
+        _miniHudWindow?.Close();
         _viewModel.Dispose();
         Application.Current.Shutdown();
+    }
+
+    private void OnInspectDeviceClicked(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.DataContext is DeviceViewModel vm)
+        {
+            _viewModel.SelectedDevice = vm;
+            _viewModel.IsInspectorOpen = true;
+        }
+    }
+
+    private void OnDismissTopologyHudClicked(object sender, RoutedEventArgs e)
+    {
+        _viewModel.SelectedDevice = null;
     }
 }

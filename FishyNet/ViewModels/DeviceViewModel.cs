@@ -120,6 +120,53 @@ public sealed class DeviceViewModel : ObservableObject
         ? "THIS PC"
         : (Model.IsGateway ? "GATEWAY" : Model.DeviceCategory.ToUpperInvariant());
 
+    public string CategoryIconGlyph
+    {
+        get
+        {
+            if (Model.IsGateway) return "📡";
+            if (Model.IsLocalHost) return "💻";
+            string cat = Category;
+            if (cat.Contains("Mobile", StringComparison.OrdinalIgnoreCase) || cat.Contains("Phone", StringComparison.OrdinalIgnoreCase)) return "📱";
+            if (cat.Contains("Media", StringComparison.OrdinalIgnoreCase) || cat.Contains("Console", StringComparison.OrdinalIgnoreCase) || cat.Contains("TV", StringComparison.OrdinalIgnoreCase)) return "🎮";
+            if (cat.Contains("Workstation", StringComparison.OrdinalIgnoreCase) || cat.Contains("PC", StringComparison.OrdinalIgnoreCase)) return "💻";
+            if (cat.Contains("IoT", StringComparison.OrdinalIgnoreCase)) return "💡";
+            if (cat.Contains("Router", StringComparison.OrdinalIgnoreCase)) return "📡";
+            if (cat.Contains("Virtual", StringComparison.OrdinalIgnoreCase)) return "☁️";
+            return "🖥️";
+        }
+    }
+
+    public bool IsThrottled => (DownloadCapKBps > 0 || UploadCapKBps > 0) && !IsBlocked;
+
+    public double DownloadCapSliderValue
+    {
+        get => DownloadCapKBps;
+        set => DownloadCapKBps = (int)Math.Round(value);
+    }
+
+    public void RefreshExternalCaps()
+    {
+        if (_downloadCapKBps != Model.DownloadCapKBps)
+        {
+            _downloadCapKBps = Model.DownloadCapKBps;
+            OnPropertyChanged(nameof(DownloadCapKBps));
+            OnPropertyChanged(nameof(DownloadCapSliderValue));
+        }
+        if (_uploadCapKBps != Model.UploadCapKBps)
+        {
+            _uploadCapKBps = Model.UploadCapKBps;
+            OnPropertyChanged(nameof(UploadCapKBps));
+        }
+        if (_isBlocked != Model.IsBlocked)
+        {
+            _isBlocked = Model.IsBlocked;
+            OnPropertyChanged(nameof(IsBlocked));
+        }
+        UpdateStatusBadge();
+        UpdateFormattedStrings();
+    }
+
     public string IpAddressText
     {
         get => _ipText;
@@ -293,6 +340,8 @@ public sealed class DeviceViewModel : ObservableObject
                     NotifyMonitorStateChanged();
                 }
                 UpdateFormattedStrings();
+                OnPropertyChanged(nameof(DownloadCapSliderValue));
+                OnPropertyChanged(nameof(IsThrottled));
                 RuleModified?.Invoke(this);
             }
         }
@@ -314,6 +363,7 @@ public sealed class DeviceViewModel : ObservableObject
                     NotifyMonitorStateChanged();
                 }
                 UpdateFormattedStrings();
+                OnPropertyChanged(nameof(IsThrottled));
                 RuleModified?.Invoke(this);
             }
         }

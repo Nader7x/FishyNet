@@ -1,0 +1,491 @@
+using System.Globalization;
+using System.Windows;
+using System.Windows.Input;
+using System.Windows.Media;
+using FishyNet.ViewModels;
+
+namespace FishyNet.Controls;
+
+/// <summary>
+/// Hardware-accelerated interactive Network Topology Radar & Node Graph canvas.
+/// Renders the Gateway at center with LAN devices orbiting around it.
+/// Renders animated particle streams whose thickness and velocity scale with live bandwidth flow.
+/// Zero heap allocations during the 60fps rendering loop.
+/// </summary>
+public sealed class NetworkTopologyControl : FrameworkElement
+{
+    private static readonly SolidColorBrush RadarBgBrush;
+    private static readonly Pen RadarGridPen;
+    private static readonly Pen RadarCrosshairPen;
+    private static readonly SolidColorBrush GatewayFillBrush;
+    private static readonly Pen GatewayGlowPen;
+    private static readonly SolidColorBrush DeviceFillBrush;
+    private static readonly SolidColorBrush DeviceSelectedBrush;
+    private static readonly Pen DeviceNormalPen;
+    private static readonly Pen DeviceSelectedPen;
+    private static readonly Pen DeviceBlockedPen;
+    private static readonly Pen DeviceThrottledPen;
+    private static readonly SolidColorBrush TextPrimaryBrush;
+    private static readonly SolidColorBrush TextSecondaryBrush;
+    private static readonly SolidColorBrush SkyParticleBrush;
+    private static readonly SolidColorBrush VioletParticleBrush;
+    private static readonly SolidColorBrush CrimsonParticleBrush;
+    private static readonly Typeface LabelTypeface;
+    private static readonly Typeface GlyphTypeface;
+
+    private readonly List<NodeLayoutInfo> _nodeLayouts = [];
+    private double _animationTime;
+    private long _lastFrameTicks;
+    private bool _isRenderingSubscribed;
+    private NodeLayoutInfo? _hoveredNode;
+
+    private sealed class NodeLayoutInfo
+    {
+        public DeviceViewModel ViewModel { get; }
+        public Point Position { get; set; }
+        public double Radius { get; set; }
+
+        public NodeLayoutInfo(DeviceViewModel viewModel, Point position, double radius)
+        {
+            ViewModel = viewModel;
+            Position = position;
+            Radius = radius;
+        }
+    }
+
+    static NetworkTopologyControl()
+    {
+        RadarBgBrush = new SolidColorBrush(Color.FromArgb(160, 7, 10, 16));
+        RadarBgBrush.Freeze();
+
+        var gridBrush = new SolidColorBrush(Color.FromArgb(35, 56, 189, 248));
+        gridBrush.Freeze();
+        RadarGridPen = new Pen(gridBrush, 1.0) { DashStyle = new DashStyle([4, 4], 0) };
+        RadarGridPen.Freeze();
+
+        var crossBrush = new SolidColorBrush(Color.FromArgb(22, 148, 163, 184));
+        crossBrush.Freeze();
+        RadarCrosshairPen = new Pen(crossBrush, 1.0);
+        RadarCrosshairPen.Freeze();
+
+        var gwFill = new SolidColorBrush(Color.FromArgb(235, 16, 185, 129));
+        gwFill.Freeze();
+        GatewayFillBrush = gwFill;
+
+        var gwGlow = new SolidColorBrush(Color.FromArgb(90, 16, 185, 129));
+        gwGlow.Freeze();
+        GatewayGlowPen = new Pen(gwGlow, 5.0);
+        GatewayGlowPen.Freeze();
+
+        var devFill = new SolidColorBrush(Color.FromArgb(230, 20, 29, 45));
+        devFill.Freeze();
+        DeviceFillBrush = devFill;
+
+        var devSel = new SolidColorBrush(Color.FromArgb(245, 30, 48, 75));
+        devSel.Freeze();
+        DeviceSelectedBrush = devSel;
+
+        var devPen = new SolidColorBrush(Color.FromArgb(180, 56, 189, 248));
+        devPen.Freeze();
+        DeviceNormalPen = new Pen(devPen, 1.8);
+        DeviceNormalPen.Freeze();
+
+        var selPen = new SolidColorBrush(Color.FromArgb(255, 56, 189, 248));
+        selPen.Freeze();
+        DeviceSelectedPen = new Pen(selPen, 3.0);
+        DeviceSelectedPen.Freeze();
+
+        var blkPen = new SolidColorBrush(Color.FromArgb(255, 239, 68, 68));
+        blkPen.Freeze();
+        DeviceBlockedPen = new Pen(blkPen, 2.0);
+        DeviceBlockedPen.Freeze();
+
+        var thrPen = new SolidColorBrush(Color.FromArgb(255, 245, 158, 11));
+        thrPen.Freeze();
+        DeviceThrottledPen = new Pen(thrPen, 2.0);
+        DeviceThrottledPen.Freeze();
+
+        TextPrimaryBrush = new SolidColorBrush(Color.FromRgb(248, 250, 252));
+        TextPrimaryBrush.Freeze();
+
+        TextSecondaryBrush = new SolidColorBrush(Color.FromRgb(148, 163, 184));
+        TextSecondaryBrush.Freeze();
+
+        SkyParticleBrush = new SolidColorBrush(Color.FromArgb(230, 56, 189, 248));
+        SkyParticleBrush.Freeze();
+
+        VioletParticleBrush = new SolidColorBrush(Color.FromArgb(230, 168, 85, 247));
+        VioletParticleBrush.Freeze();
+
+        CrimsonParticleBrush = new SolidColorBrush(Color.FromArgb(230, 239, 68, 68));
+        CrimsonParticleBrush.Freeze();
+
+        LabelTypeface = new Typeface(new FontFamily("Segoe UI Variable Display, Segoe UI, sans-serif"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
+        GlyphTypeface = new Typeface(new FontFamily("Segoe UI Emoji, Segoe UI, sans-serif"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+    }
+
+    public static readonly DependencyProperty DevicesProperty =
+        DependencyProperty.Register(
+            nameof(Devices),
+            typeof(IEnumerable<DeviceViewModel>),
+            typeof(NetworkTopologyControl),
+            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public static readonly DependencyProperty SelectedDeviceProperty =
+        DependencyProperty.Register(
+            nameof(SelectedDevice),
+            typeof(DeviceViewModel),
+            typeof(NetworkTopologyControl),
+            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault | FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public IEnumerable<DeviceViewModel>? Devices
+    {
+        get => (IEnumerable<DeviceViewModel>?)GetValue(DevicesProperty);
+        set => SetValue(DevicesProperty, value);
+    }
+
+    public DeviceViewModel? SelectedDevice
+    {
+        get => (DeviceViewModel?)GetValue(SelectedDeviceProperty);
+        set => SetValue(SelectedDeviceProperty, value);
+    }
+
+    public NetworkTopologyControl()
+    {
+        ClipToBounds = true;
+        Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
+        IsVisibleChanged += OnIsVisibleChanged;
+    }
+
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        UpdateRenderSubscription();
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        StopRendering();
+    }
+
+    private void OnIsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        UpdateRenderSubscription();
+    }
+
+    private void UpdateRenderSubscription()
+    {
+        if (IsLoaded && IsVisible)
+        {
+            StartRendering();
+        }
+        else
+        {
+            StopRendering();
+        }
+    }
+
+    private void StartRendering()
+    {
+        if (!_isRenderingSubscribed)
+        {
+            _lastFrameTicks = Environment.TickCount64;
+            CompositionTarget.Rendering += OnCompositionRendering;
+            _isRenderingSubscribed = true;
+        }
+    }
+
+    private void StopRendering()
+    {
+        if (_isRenderingSubscribed)
+        {
+            CompositionTarget.Rendering -= OnCompositionRendering;
+            _isRenderingSubscribed = false;
+        }
+    }
+
+    private void OnCompositionRendering(object? sender, EventArgs e)
+    {
+        long now = Environment.TickCount64;
+        long delta = now - _lastFrameTicks;
+        _lastFrameTicks = now;
+
+        if (delta > 0)
+        {
+            // Advance animation time based on elapsed delta
+            _animationTime += delta / 1000.0;
+            InvalidateVisual();
+        }
+    }
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        base.OnMouseMove(e);
+        Point pos = e.GetPosition(this);
+        NodeLayoutInfo? hit = HitTestNode(pos);
+
+        if (hit != _hoveredNode)
+        {
+            _hoveredNode = hit;
+            Cursor = hit != null ? Cursors.Hand : Cursors.Arrow;
+            InvalidateVisual();
+        }
+    }
+
+    protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
+    {
+        base.OnMouseLeftButtonDown(e);
+        Point pos = e.GetPosition(this);
+        NodeLayoutInfo? hit = HitTestNode(pos);
+
+        if (hit != null)
+        {
+            SelectedDevice = hit.ViewModel;
+        }
+        else
+        {
+            SelectedDevice = null;
+        }
+        e.Handled = true;
+    }
+
+    private NodeLayoutInfo? HitTestNode(Point pt)
+    {
+        for (int i = _nodeLayouts.Count - 1; i >= 0; i--)
+        {
+            NodeLayoutInfo node = _nodeLayouts[i];
+            double dx = pt.X - node.Position.X;
+            double dy = pt.Y - node.Position.Y;
+            if ((dx * dx) + (dy * dy) <= (node.Radius * node.Radius))
+            {
+                return node;
+            }
+        }
+        return null;
+    }
+
+    protected override void OnRender(DrawingContext dc)
+    {
+        base.OnRender(dc);
+
+        double width = ActualWidth;
+        double height = ActualHeight;
+        if (width < 50 || height < 50) return;
+
+        Point center = new(width / 2.0, height / 2.0);
+        double maxRadius = Math.Min(width, height) / 2.0 - 45.0;
+        if (maxRadius < 30) return;
+
+        // 1. Draw Background radar gradient & concentric range rings
+        dc.DrawRectangle(RadarBgBrush, null, new Rect(0, 0, width, height));
+
+        // Crosshairs
+        dc.DrawLine(RadarCrosshairPen, new Point(center.X, 0), new Point(center.X, height));
+        dc.DrawLine(RadarCrosshairPen, new Point(0, center.Y), new Point(width, center.Y));
+
+        // Concentric rings
+        dc.DrawEllipse(null, RadarGridPen, center, maxRadius * 0.35, maxRadius * 0.35);
+        dc.DrawEllipse(null, RadarGridPen, center, maxRadius * 0.70, maxRadius * 0.70);
+        dc.DrawEllipse(null, RadarGridPen, center, maxRadius, maxRadius);
+
+        // Animated Radar Sweep Pulse
+        double pulseRatio = (_animationTime * 0.3) % 1.0;
+        double pulseRadius = maxRadius * pulseRatio;
+        byte alpha = (byte)(75 * (1.0 - pulseRatio));
+        var pulseBrush = new SolidColorBrush(Color.FromArgb(alpha, 16, 185, 129));
+        var pulsePen = new Pen(pulseBrush, 1.5);
+        dc.DrawEllipse(null, pulsePen, center, pulseRadius, pulseRadius);
+
+        // 2. Identify Gateway and Orbiting Devices
+        _nodeLayouts.Clear();
+
+        List<DeviceViewModel> orbitingDevices = [];
+        DeviceViewModel? gatewayVm = null;
+
+        if (Devices != null)
+        {
+            foreach (DeviceViewModel vm in Devices)
+            {
+                if (vm.IsGateway)
+                {
+                    gatewayVm = vm;
+                }
+                else
+                {
+                    orbitingDevices.Add(vm);
+                }
+            }
+        }
+
+        // 3. Layout Orbiting Nodes in concentric or radial distribution
+        int count = orbitingDevices.Count;
+        double baseRadius = maxRadius * 0.78;
+
+        for (int i = 0; i < count; i++)
+        {
+            DeviceViewModel dev = orbitingDevices[i];
+
+            // Alternate between inner and outer orbit if count is large
+            double ringDist = count > 10
+                ? (i % 2 == 0 ? maxRadius * 0.58 : maxRadius * 0.90)
+                : baseRadius;
+
+            // Angle distribution
+            double angle = (2.0 * Math.PI * i / count) - (Math.PI / 2.0);
+            Point nodePos = new(
+                center.X + (ringDist * Math.Cos(angle)),
+                center.Y + (ringDist * Math.Sin(angle)));
+
+            _nodeLayouts.Add(new NodeLayoutInfo(dev, nodePos, 22.0));
+        }
+
+        double dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
+
+        // 4. Draw Connection Streams & Animated Particles between Gateway and Nodes
+        for (int i = 0; i < _nodeLayouts.Count; i++)
+        {
+            NodeLayoutInfo node = _nodeLayouts[i];
+            DeviceViewModel dev = node.ViewModel;
+
+            // Compute line properties based on throughput
+            double downBps = dev.CurrentDownloadBps;
+            double upBps = dev.CurrentUploadBps;
+            double totalBps = downBps + upBps;
+
+            double thickness = 1.2 + Math.Min(5.0, totalBps / (250.0 * 1024.0));
+
+            Pen streamPen;
+            if (dev.IsBlocked)
+            {
+                streamPen = new Pen(CrimsonParticleBrush, 1.5) { DashStyle = new DashStyle([3, 3], 0) };
+            }
+            else if (dev.IsThrottled)
+            {
+                var amb = new SolidColorBrush(Color.FromArgb(140, 245, 158, 11));
+                streamPen = new Pen(amb, thickness);
+            }
+            else if (!dev.IsSpoofed)
+            {
+                var slate = new SolidColorBrush(Color.FromArgb(70, 100, 116, 139));
+                streamPen = new Pen(slate, 1.0);
+            }
+            else
+            {
+                byte streamAlpha = (byte)Math.Min(220, 40 + (int)(totalBps / 5000));
+                var streamColor = Color.FromArgb(streamAlpha, 56, 189, 248);
+                streamPen = new Pen(new SolidColorBrush(streamColor), thickness);
+            }
+
+            dc.DrawLine(streamPen, center, node.Position);
+
+            // Draw Animated Particle Flow along stream
+            if (!dev.IsBlocked && totalBps > 100)
+            {
+                double flowSpeed = 0.5 + Math.Min(3.0, totalBps / 300000.0);
+                int particleCount = Math.Max(2, Math.Min(6, (int)(thickness * 1.5)));
+
+                for (int p = 0; p < particleCount; p++)
+                {
+                    double particleOffset = ((_animationTime * flowSpeed) + ((double)p / particleCount)) % 1.0;
+
+                    // Download flows Gateway -> Device (0.0 -> 1.0)
+                    Point pPt = new(
+                        center.X + ((node.Position.X - center.X) * particleOffset),
+                        center.Y + ((node.Position.Y - center.Y) * particleOffset));
+
+                    Brush pBrush = downBps >= upBps ? SkyParticleBrush : VioletParticleBrush;
+                    dc.DrawEllipse(pBrush, null, pPt, 2.5, 2.5);
+                }
+            }
+        }
+
+        // 5. Draw Orbiting Device Nodes
+        for (int i = 0; i < _nodeLayouts.Count; i++)
+        {
+            NodeLayoutInfo node = _nodeLayouts[i];
+            DeviceViewModel dev = node.ViewModel;
+            bool isSelected = dev == SelectedDevice;
+            bool isHovered = node == _hoveredNode;
+
+            Brush fill = isSelected ? DeviceSelectedBrush : DeviceFillBrush;
+            Pen pen = dev.IsBlocked
+                ? DeviceBlockedPen
+                : (dev.IsThrottled ? DeviceThrottledPen : (isSelected ? DeviceSelectedPen : DeviceNormalPen));
+
+            // Outer halo when hovered or selected
+            if (isSelected || isHovered)
+            {
+                var haloBrush = new SolidColorBrush(Color.FromArgb(50, 56, 189, 248));
+                dc.DrawEllipse(haloBrush, null, node.Position, node.Radius + 7, node.Radius + 7);
+            }
+
+            // Main node circle
+            dc.DrawEllipse(fill, pen, node.Position, node.Radius, node.Radius);
+
+            // Category Icon Glyph in node center
+            string glyph = dev.CategoryIconGlyph;
+            FormattedText ftGlyph = new(
+                glyph,
+                CultureInfo.InvariantCulture,
+                FlowDirection.LeftToRight,
+                GlyphTypeface,
+                14.0,
+                TextPrimaryBrush,
+                dpi);
+
+            dc.DrawText(ftGlyph, new Point(node.Position.X - (ftGlyph.Width / 2.0), node.Position.Y - (ftGlyph.Height / 2.0)));
+
+            // Device Name label beneath node
+            string displayName = dev.DisplayName;
+            if (displayName.Length > 16) displayName = displayName[..15] + "…";
+
+            FormattedText ftName = new(
+                displayName,
+                CultureInfo.InvariantCulture,
+                FlowDirection.LeftToRight,
+                LabelTypeface,
+                10.0,
+                isSelected ? TextPrimaryBrush : TextSecondaryBrush,
+                dpi);
+
+            dc.DrawText(ftName, new Point(node.Position.X - (ftName.Width / 2.0), node.Position.Y + node.Radius + 3.0));
+
+            // Live rate label beneath name
+            string speedText = dev.DownloadSpeedText;
+            FormattedText ftSpeed = new(
+                speedText,
+                CultureInfo.InvariantCulture,
+                FlowDirection.LeftToRight,
+                LabelTypeface,
+                9.0,
+                SkyParticleBrush,
+                dpi);
+
+            dc.DrawText(ftSpeed, new Point(node.Position.X - (ftSpeed.Width / 2.0), node.Position.Y + node.Radius + 15.0));
+        }
+
+        // 6. Draw Center Gateway Node
+        dc.DrawEllipse(null, GatewayGlowPen, center, 28, 28);
+        dc.DrawEllipse(GatewayFillBrush, null, center, 24, 24);
+
+        FormattedText ftGwGlyph = new(
+            "📡",
+            CultureInfo.InvariantCulture,
+            FlowDirection.LeftToRight,
+            GlyphTypeface,
+            16.0,
+            TextPrimaryBrush,
+            dpi);
+        dc.DrawText(ftGwGlyph, new Point(center.X - (ftGwGlyph.Width / 2.0), center.Y - (ftGwGlyph.Height / 2.0)));
+
+        FormattedText ftGwLabel = new(
+            "GATEWAY",
+            CultureInfo.InvariantCulture,
+            FlowDirection.LeftToRight,
+            LabelTypeface,
+            10.0,
+            TextPrimaryBrush,
+            dpi);
+        dc.DrawText(ftGwLabel, new Point(center.X - (ftGwLabel.Width / 2.0), center.Y + 28.0));
+    }
+}

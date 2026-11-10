@@ -10,9 +10,18 @@ using Microsoft.Win32;
 using FishyNet.Core;
 using FishyNet.Core.Formatting;
 using FishyNet.Core.Native;
+using FishyNet.Core.Packets;
 using FishyNet.Features;
+using FishyNet.Features.SmartSchedules;
 
 namespace FishyNet.ViewModels;
+
+public enum DeviceViewMode
+{
+    Table,
+    Bento,
+    Topology
+}
 
 public sealed class MainViewModel : ObservableObject, IDisposable
 {
@@ -78,8 +87,20 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private string _protoUdpSummary = "0 B (0%)";
     private string _protoDnsSummary = "0 queries";
 
+    // UI Redesign & Smart Scheduling State
+    private DeviceViewMode _currentViewMode = DeviceViewMode.Table;
+    private bool _isInspectorOpen;
+    private bool _isGamingBoostActive;
+    private bool _isMiniHudActive;
+    private string _totalSpeedTickerText = "▼ 0 B/s   ▲ 0 B/s   ● Ping —";
+    private readonly Dictionary<MacAddress, (int DownCap, int UpCap)> _gamingBoostSavedCaps = new();
+
     public event Action? RequestShowWindow;
     public event Action? RequestExplicitExit;
+    public event Action<bool>? RequestMiniHudVisibilityChanged;
+    public event Action? RequestMinimize;
+    public event Action? RequestMaximizeRestore;
+    public event Action? RequestClose;
 
     public ObservableCollection<NetworkAdapterInfo> Adapters { get; } = [];
     public ObservableCollection<DeviceViewModel> Devices { get; } = [];
@@ -91,6 +112,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public ObservableCollection<DeviceUsageSummary> HistoryDeviceSummaries { get; } = [];
     public ObservableCollection<DnsQueryRecord> DnsQueryLogs { get; } = [];
     public ObservableCollection<ArpSecurityAlert> SecurityAlerts { get; } = [];
+
+    public SmartScheduleEngine SmartSchedules { get; } = new();
+    public ObservableCollection<SmartScheduleRule> SmartRules => SmartSchedules.Rules;
 
     public RelayCommand ScanSubnetCommand { get; }
     public RelayCommand ToggleRedirectionCommand { get; }
@@ -110,6 +134,18 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand ClearHistoryCommand { get; }
     public RelayCommand ExportDevicesCsvCommand { get; }
     public RelayCommand SetStatusFilterCommand { get; }
+
+    public RelayCommand ToggleGamingBoostCommand { get; }
+    public RelayCommand ToggleMiniHudCommand { get; }
+    public RelayCommand SetViewModeCommand { get; }
+    public RelayCommand ToggleInspectorCommand { get; }
+    public RelayCommand CloseInspectorCommand { get; }
+    public RelayCommand DeselectDeviceCommand { get; }
+    public RelayCommand ToggleSmartRuleCommand { get; }
+    public RelayCommand ResetSmartRulesCommand { get; }
+    public RelayCommand MinimizeWindowCommand { get; }
+    public RelayCommand MaximizeWindowCommand { get; }
+    public RelayCommand CloseWindowCommand { get; }
 
     public MainViewModel()
     {
@@ -178,11 +214,106 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             }
         });
 
+        ToggleGamingBoostCommand = new RelayCommand(ToggleGamingBoost);
+        ToggleMiniHudCommand = new RelayCommand(() => IsMiniHudActive = !IsMiniHudActive);
+        SetViewModeCommand = new RelayCommand(param =>
+        {
+            if (param is string str && Enum.TryParse(str, out DeviceViewMode mode))
+            {
+                CurrentViewMode = mode;
+            }
+            else if (param is DeviceViewMode m)
+            {
+                CurrentViewMode = m;
+            }
+        });
+        ToggleInspectorCommand = new RelayCommand(() => IsInspectorOpen = !IsInspectorOpen);
+        CloseInspectorCommand = new RelayCommand(() => IsInspectorOpen = false);
+        DeselectDeviceCommand = new RelayCommand(() => SelectedDevice = null);
+        ToggleSmartRuleCommand = new RelayCommand(param =>
+        {
+            if (param is SmartScheduleRule rule)
+            {
+                rule.IsEnabled = !rule.IsEnabled;
+                StatusMessage = $"Rule '{rule.Name}' is now {(rule.IsEnabled ? "ENABLED" : "DISABLED")}.";
+            }
+        });
+        ResetSmartRulesCommand = new RelayCommand(() =>
+        {
+            SmartSchedules.PopulateDefaultRules();
+            StatusMessage = "Reset smart schedules to built-in presets.";
+        });
+        MinimizeWindowCommand = new RelayCommand(() => RequestMinimize?.Invoke());
+        MaximizeWindowCommand = new RelayCommand(() => RequestMaximizeRestore?.Invoke());
+        CloseWindowCommand = new RelayCommand(() => RequestClose?.Invoke());
+
         _telemetryTimer = new DispatcherTimer(DispatcherPriority.Normal)
         {
             Interval = TimeSpan.FromSeconds(1)
         };
         _telemetryTimer.Tick += OnTelemetryTick;
+    }
+
+    public DeviceViewMode CurrentViewMode
+    {
+        get => _currentViewMode;
+        set
+        {
+            if (SetProperty(ref _currentViewMode, value))
+            {
+                OnPropertyChanged(nameof(IsTableView));
+                OnPropertyChanged(nameof(IsBentoView));
+                OnPropertyChanged(nameof(IsTopologyView));
+            }
+        }
+    }
+
+    public bool IsTableView => CurrentViewMode == DeviceViewMode.Table;
+    public bool IsBentoView => CurrentViewMode == DeviceViewMode.Bento;
+    public bool IsTopologyView => CurrentViewMode == DeviceViewMode.Topology;
+
+    public bool IsInspectorOpen
+    {
+        get => _isInspectorOpen;
+        set => SetProperty(ref _isInspectorOpen, value);
+    }
+
+    public bool IsGamingBoostActive
+    {
+        get => _isGamingBoostActive;
+        set
+        {
+            if (SetProperty(ref _isGamingBoostActive, value))
+            {
+                OnPropertyChanged(nameof(GamingBoostButtonText));
+                UpdateTotalSpeedTickerText();
+            }
+        }
+    }
+
+    public string GamingBoostButtonText => IsGamingBoostActive ? "BOOST ACTIVE" : "BOOST MY PC";
+
+    public bool IsMiniHudActive
+    {
+        get => _isMiniHudActive;
+        set
+        {
+            if (SetProperty(ref _isMiniHudActive, value))
+            {
+                RequestMiniHudVisibilityChanged?.Invoke(value);
+            }
+        }
+    }
+
+    public string TotalSpeedTickerText
+    {
+        get => _totalSpeedTickerText;
+        private set => SetProperty(ref _totalSpeedTickerText, value);
+    }
+
+    private void UpdateTotalSpeedTickerText()
+    {
+        TotalSpeedTickerText = $"▼ {TotalDownloadText}   ▲ {TotalUploadText}   ● Ping {GatewayLatencyText}{(IsGamingBoostActive ? "  [⚡ BOOST ACTIVE]" : "")}";
     }
 
     public NetworkAdapterInfo? SelectedAdapter
@@ -200,7 +331,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public DeviceViewModel? SelectedDevice
     {
         get => _selectedDevice;
-        set => SetProperty(ref _selectedDevice, value);
+        set
+        {
+            if (SetProperty(ref _selectedDevice, value) && value is not null)
+            {
+                IsInspectorOpen = true;
+            }
+        }
     }
 
     public string SearchQuery
@@ -966,6 +1103,24 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         string menuHeader = $"FishyNet — ↓ {TotalDownloadText}  ↑ {TotalUploadText}";
         _trayService.UpdateLiveStatus(trayTip, menuHeader, _isRedirecting);
 
+        // Smart Schedules Autonomous Evaluation & Auto-Gaming latency guard
+        double gatewayPingMs = 0;
+        NetworkDevice? gw = Devices.FirstOrDefault(d => d.IsGateway)?.Model;
+        if (gw != null && gw.PingRttMs >= 0)
+        {
+            gatewayPingMs = gw.PingRttMs;
+        }
+
+        var devModels = Devices.Select(d => d.Model).ToList();
+        SmartSchedules.Evaluate(gatewayPingMs, devModels, DateTime.Now);
+
+        foreach (DeviceViewModel vm in Devices)
+        {
+            vm.RefreshExternalCaps();
+        }
+
+        UpdateTotalSpeedTickerText();
+
         _ticksSinceHistoryFlush++;
         if (_ticksSinceHistoryFlush >= 20)
         {
@@ -975,6 +1130,41 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             {
                 RefreshHistoryReport();
             }
+        }
+    }
+
+    public void ToggleGamingBoost()
+    {
+        if (IsGamingBoostActive)
+        {
+            foreach (DeviceViewModel vm in Devices)
+            {
+                if (vm.CanThrottle && _gamingBoostSavedCaps.TryGetValue(vm.Model.Mac, out var saved))
+                {
+                    vm.DownloadCapKBps = saved.DownCap;
+                    vm.UploadCapKBps = saved.UpCap;
+                }
+            }
+            _gamingBoostSavedCaps.Clear();
+            IsGamingBoostActive = false;
+            StatusMessage = "Gaming Boost deactivated. Restored original LAN device caps.";
+        }
+        else
+        {
+            _gamingBoostSavedCaps.Clear();
+            int count = 0;
+            foreach (DeviceViewModel vm in Devices)
+            {
+                if (vm.CanThrottle)
+                {
+                    _gamingBoostSavedCaps[vm.Model.Mac] = (vm.DownloadCapKBps, vm.UploadCapKBps);
+                    vm.DownloadCapKBps = 64;
+                    vm.UploadCapKBps = 32;
+                    count++;
+                }
+            }
+            IsGamingBoostActive = true;
+            StatusMessage = $"⚡ Gaming Boost ACTIVE: Throttled {count} other devices to 64 KB/s to preserve gaming latency.";
         }
     }
 
