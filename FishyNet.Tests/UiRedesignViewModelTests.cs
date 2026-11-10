@@ -38,7 +38,8 @@ public sealed class UiRedesignViewModelTests
         {
             DeviceCategory = "Mobile",
             DownloadCapKBps = 0,
-            UploadCapKBps = 0
+            UploadCapKBps = 0,
+            IsSpoofed = false
         };
         var phoneVm = new DeviceViewModel(phoneDev, useBitsPerSecond: false);
 
@@ -50,6 +51,7 @@ public sealed class UiRedesignViewModelTests
         // 1. Initial State
         Assert.False(vm.IsGamingBoostActive);
         Assert.Equal("BOOST MY PC", vm.GamingBoostButtonText);
+        Assert.False(phoneVm.IsSpoofed);
 
         // 2. Toggle Gaming Boost ON
         vm.ToggleGamingBoostCommand.Execute(null);
@@ -62,13 +64,14 @@ public sealed class UiRedesignViewModelTests
         Assert.Equal(0, gwVm.DownloadCapKBps);
         Assert.Equal(0, hostVm.DownloadCapKBps);
 
-        // TV and Phone should be capped to 64 KB/s down and 32 KB/s up
+        // TV and Phone should be capped to 64 KB/s down and 32 KB/s up, and phone forced to monitored
         Assert.Equal(64, tvVm.DownloadCapKBps);
         Assert.Equal(32, tvVm.UploadCapKBps);
         Assert.Equal(64, phoneVm.DownloadCapKBps);
         Assert.Equal(32, phoneVm.UploadCapKBps);
+        Assert.True(phoneVm.IsSpoofed);
 
-        // 3. Toggle Gaming Boost OFF -> Original caps restored!
+        // 3. Toggle Gaming Boost OFF -> Original caps and spoofed states restored!
         vm.ToggleGamingBoostCommand.Execute(null);
 
         Assert.False(vm.IsGamingBoostActive);
@@ -77,6 +80,7 @@ public sealed class UiRedesignViewModelTests
         Assert.Equal(2000, tvVm.UploadCapKBps);
         Assert.Equal(0, phoneVm.DownloadCapKBps);
         Assert.Equal(0, phoneVm.UploadCapKBps);
+        Assert.False(phoneVm.IsSpoofed);
     }
 
     [Fact]
@@ -118,22 +122,33 @@ public sealed class UiRedesignViewModelTests
 
         vm.IsInspectorOpen = false;
         Assert.False(vm.IsInspectorOpen);
+        Assert.False(vm.HasSelectedDevice);
 
-        // Selecting a device auto-opens the drawer
+        // Selecting a device in Table/Bento view auto-opens the drawer
         vm.SelectedDevice = devVm;
         Assert.True(vm.IsInspectorOpen);
+        Assert.True(vm.HasSelectedDevice);
 
         // Close command collapses the drawer
         vm.CloseInspectorCommand.Execute(null);
         Assert.False(vm.IsInspectorOpen);
+        Assert.True(vm.HasSelectedDevice);
 
         // Toggle command re-opens the drawer
         vm.ToggleInspectorCommand.Execute(null);
         Assert.True(vm.IsInspectorOpen);
 
-        // Deselect command clears selected device
+        // Deselect command clears selected device and auto-collapses drawer
         vm.DeselectDeviceCommand.Execute(null);
         Assert.Null(vm.SelectedDevice);
+        Assert.False(vm.IsInspectorOpen);
+        Assert.False(vm.HasSelectedDevice);
+
+        // In Topology View, selecting a device does not force side drawer open (floating HUD handles it)
+        vm.SetViewModeCommand.Execute("Topology");
+        vm.SelectedDevice = devVm;
+        Assert.False(vm.IsInspectorOpen);
+        Assert.True(vm.HasSelectedDevice);
     }
 
     [Fact]

@@ -93,7 +93,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private bool _isGamingBoostActive;
     private bool _isMiniHudActive;
     private string _totalSpeedTickerText = "▼ 0 B/s   ▲ 0 B/s   ● Ping —";
-    private readonly Dictionary<MacAddress, (int DownCap, int UpCap)> _gamingBoostSavedCaps = new();
+    private readonly Dictionary<MacAddress, (int DownCap, int UpCap, bool WasSpoofed)> _gamingBoostSavedCaps = new();
 
     public event Action? RequestShowWindow;
     public event Action? RequestExplicitExit;
@@ -264,6 +264,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(IsTableView));
                 OnPropertyChanged(nameof(IsBentoView));
                 OnPropertyChanged(nameof(IsTopologyView));
+                if (value == DeviceViewMode.Topology)
+                {
+                    IsInspectorOpen = false;
+                }
             }
         }
     }
@@ -328,14 +332,24 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    public bool HasSelectedDevice => _selectedDevice is not null;
+
     public DeviceViewModel? SelectedDevice
     {
         get => _selectedDevice;
         set
         {
-            if (SetProperty(ref _selectedDevice, value) && value is not null)
+            if (SetProperty(ref _selectedDevice, value))
             {
-                IsInspectorOpen = true;
+                OnPropertyChanged(nameof(HasSelectedDevice));
+                if (value is null)
+                {
+                    IsInspectorOpen = false;
+                }
+                else if (CurrentViewMode != DeviceViewMode.Topology)
+                {
+                    IsInspectorOpen = true;
+                }
             }
         }
     }
@@ -1111,8 +1125,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             gatewayPingMs = gw.PingRttMs;
         }
 
-        var devModels = Devices.Select(d => d.Model).ToList();
-        SmartSchedules.Evaluate(gatewayPingMs, devModels, DateTime.Now);
+        SmartSchedules.Evaluate(gatewayPingMs, _registry.AllDevices, DateTime.Now);
 
         foreach (DeviceViewModel vm in Devices)
         {
@@ -1143,6 +1156,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 {
                     vm.DownloadCapKBps = saved.DownCap;
                     vm.UploadCapKBps = saved.UpCap;
+                    vm.IsSpoofed = saved.WasSpoofed;
                 }
             }
             _gamingBoostSavedCaps.Clear();
@@ -1157,11 +1171,16 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             {
                 if (vm.CanThrottle)
                 {
-                    _gamingBoostSavedCaps[vm.Model.Mac] = (vm.DownloadCapKBps, vm.UploadCapKBps);
+                    _gamingBoostSavedCaps[vm.Model.Mac] = (vm.DownloadCapKBps, vm.UploadCapKBps, vm.IsSpoofed);
                     vm.DownloadCapKBps = 64;
                     vm.UploadCapKBps = 32;
+                    vm.IsSpoofed = true;
                     count++;
                 }
+            }
+            if (!IsRedirecting && SelectedAdapter is not null)
+            {
+                ToggleRedirection();
             }
             IsGamingBoostActive = true;
             StatusMessage = $"⚡ Gaming Boost ACTIVE: Throttled {count} other devices to 64 KB/s to preserve gaming latency.";

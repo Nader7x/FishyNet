@@ -38,7 +38,7 @@ public sealed class SmartScheduleEngine
             ruleType: SmartRuleType.PingLatencyTrigger,
             isEnabled: true,
             latencyThresholdMs: 60.0,
-            targetCategory: "Media/Console",
+            targetCategory: "TV/Mobile",
             throttleCapKBps: 100));
 
         // 2. Nighttime Bandwidth Saver (8:00 PM - 12:00 AM)
@@ -65,10 +65,11 @@ public sealed class SmartScheduleEngine
     }
 
     /// <summary>
-    /// Evaluates all rules against current telemetry and device list.
+    /// Evaluates all rules against current telemetry and device collection.
     /// Safely applies caps and restores original caps upon rule cessation.
+    /// Zero heap allocations during evaluation.
     /// </summary>
-    public void Evaluate(double currentGatewayPingMs, IReadOnlyList<NetworkDevice> devices, DateTime now)
+    public void Evaluate(double currentGatewayPingMs, IReadOnlyCollection<NetworkDevice> devices, DateTime now)
     {
         TimeSpan currentTime = now.TimeOfDay;
 
@@ -134,11 +135,9 @@ public sealed class SmartScheduleEngine
 
             if (shouldTrigger)
             {
-                if (!rule.IsCurrentlyTriggered)
-                {
-                    ApplyRule(rule, devices);
-                    rule.IsCurrentlyTriggered = true;
-                }
+                // Apply rule to all eligible devices (and any newly connected devices)
+                ApplyRule(rule, devices);
+                rule.IsCurrentlyTriggered = true;
                 rule.StatusDescription = status;
             }
             else
@@ -153,7 +152,7 @@ public sealed class SmartScheduleEngine
         }
     }
 
-    private void ApplyRule(SmartScheduleRule rule, IReadOnlyList<NetworkDevice> devices)
+    private void ApplyRule(SmartScheduleRule rule, IReadOnlyCollection<NetworkDevice> devices)
     {
         ConcurrentDictionary<MacAddress, SavedCap> savedCaps = _activeRuleSavedCaps.GetOrAdd(rule.Id, _ => new ConcurrentDictionary<MacAddress, SavedCap>());
 
@@ -162,19 +161,22 @@ public sealed class SmartScheduleEngine
             if (device.IsGateway || device.IsLocalHost) continue;
             if (!MatchesTargetCategory(device, rule.TargetCategory)) continue;
 
-            // Save original caps if not already saved
-            savedCaps.TryAdd(device.Mac, new SavedCap(device.DownloadCapKBps, device.UploadCapKBps));
-
-            // Enforce cap
-            device.DownloadCapKBps = rule.ThrottleCapKBps;
-            if (device.UploadCapKBps > rule.ThrottleCapKBps || device.UploadCapKBps == 0)
+            // Save original caps before enforcing the cap (if not already saved for this active trigger)
+            if (savedCaps.TryAdd(device.Mac, new SavedCap(device.DownloadCapKBps, device.UploadCapKBps)))
             {
-                device.UploadCapKBps = rule.ThrottleCapKBps;
+                if (device.DownloadCapKBps == 0 || device.DownloadCapKBps > rule.ThrottleCapKBps)
+                {
+                    device.DownloadCapKBps = rule.ThrottleCapKBps;
+                }
+                if (device.UploadCapKBps == 0 || device.UploadCapKBps > rule.ThrottleCapKBps)
+                {
+                    device.UploadCapKBps = rule.ThrottleCapKBps;
+                }
             }
         }
     }
 
-    private void RevertRule(SmartScheduleRule rule, IReadOnlyList<NetworkDevice> devices)
+    private void RevertRule(SmartScheduleRule rule, IReadOnlyCollection<NetworkDevice> devices)
     {
         if (_activeRuleSavedCaps.TryRemove(rule.Id, out ConcurrentDictionary<MacAddress, SavedCap>? savedCaps))
         {
@@ -189,17 +191,49 @@ public sealed class SmartScheduleEngine
         }
     }
 
-    private static bool MatchesTargetCategory(NetworkDevice device, string targetCategory)
+    public static bool MatchesTargetCategory(NetworkDevice device, string targetCategory)
     {
         if (string.Equals(targetCategory, "AllOther", StringComparison.OrdinalIgnoreCase)) return true;
         if (string.Equals(device.DeviceCategory, targetCategory, StringComparison.OrdinalIgnoreCase)) return true;
 
-        if (string.Equals(targetCategory, "Media/Console", StringComparison.OrdinalIgnoreCase) &&
-            (device.DeviceCategory.Contains("Media", StringComparison.OrdinalIgnoreCase) ||
-             device.DeviceCategory.Contains("Console", StringComparison.OrdinalIgnoreCase) ||
-             device.DeviceCategory.Contains("TV", StringComparison.OrdinalIgnoreCase)))
+        // Support compound categories (e.g. "TV/Mobile", "Media/Mobile", "Mobile/Console")
+        if (targetCategory.Contains('/') || targetCategory.Contains(','))
+        {
+            string[] parts = targetCategory.Split(['/', ','], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            foreach (string part in parts)
+            {
+                if (MatchesSingleCategory(device.DeviceCategory, part))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        return MatchesSingleCategory(device.DeviceCategory, targetCategory);
+    }
+
+    private static bool MatchesSingleCategory(string deviceCategory, string singleCategory)
+    {
+        if (string.Equals(deviceCategory, singleCategory, StringComparison.OrdinalIgnoreCase))
         {
             return true;
+        }
+
+        if (string.Equals(singleCategory, "TV", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(singleCategory, "Media", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(singleCategory, "Console", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(singleCategory, "Media/Console", StringComparison.OrdinalIgnoreCase))
+        {
+            return deviceCategory.Contains("Media", StringComparison.OrdinalIgnoreCase) ||
+                   deviceCategory.Contains("Console", StringComparison.OrdinalIgnoreCase) ||
+                   deviceCategory.Contains("TV", StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (string.Equals(singleCategory, "Mobile", StringComparison.OrdinalIgnoreCase))
+        {
+            return deviceCategory.Contains("Mobile", StringComparison.OrdinalIgnoreCase) ||
+                   deviceCategory.Contains("Phone", StringComparison.OrdinalIgnoreCase);
         }
 
         return false;

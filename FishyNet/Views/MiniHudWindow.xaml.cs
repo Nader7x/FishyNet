@@ -32,6 +32,12 @@ public partial class MiniHudWindow : Window
         }
     }
 
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    {
+        _viewModel.IsMiniHudActive = false;
+        base.OnClosing(e);
+    }
+
     private void OnRestoreFullWindowClicked(object sender, RoutedEventArgs e)
     {
         _viewModel.IsMiniHudActive = false;

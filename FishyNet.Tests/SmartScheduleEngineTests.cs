@@ -205,4 +205,85 @@ public sealed class SmartScheduleEngineTests
         // 3. Zero ping
         engine.Evaluate(0.0, [], DateTime.Now);
     }
+
+    [Fact]
+    public void AutoGamingLatencyGuard_ThrottlesBothTvAndMobileDevices_WhenPingExceeds60ms()
+    {
+        var engine = new SmartScheduleEngine();
+        engine.PopulateDefaultRules();
+
+        Ipv4Address.TryParse("192.168.1.1", out Ipv4Address gwIp);
+        MacAddress.TryParse("00:11:22:33:44:01", out MacAddress gwMac);
+        var gw = new NetworkDevice(gwIp, gwMac, isGateway: true);
+
+        Ipv4Address.TryParse("192.168.1.100", out Ipv4Address tvIp);
+        MacAddress.TryParse("00:11:22:33:44:10", out MacAddress tvMac);
+        var tv = new NetworkDevice(tvIp, tvMac)
+        {
+            DeviceCategory = "Media/Console",
+            DownloadCapKBps = 0,
+            UploadCapKBps = 0
+        };
+
+        Ipv4Address.TryParse("192.168.1.101", out Ipv4Address phoneIp);
+        MacAddress.TryParse("00:11:22:33:44:20", out MacAddress phoneMac);
+        var phone = new NetworkDevice(phoneIp, phoneMac)
+        {
+            DeviceCategory = "Mobile",
+            DownloadCapKBps = 0,
+            UploadCapKBps = 0
+        };
+
+        Ipv4Address.TryParse("192.168.1.102", out Ipv4Address pcIp);
+        MacAddress.TryParse("00:11:22:33:44:30", out MacAddress pcMac);
+        var pc = new NetworkDevice(pcIp, pcMac, isLocalHost: true)
+        {
+            DeviceCategory = "Workstation",
+            DownloadCapKBps = 0,
+            UploadCapKBps = 0
+        };
+
+        List<NetworkDevice> devices = [gw, tv, phone, pc];
+
+        // Trigger ping rule with 72 ms
+        engine.Evaluate(72.0, devices, DateTime.Now);
+
+        // BOTH TV and Mobile should be capped to 100 KB/s
+        Assert.Equal(100, tv.DownloadCapKBps);
+        Assert.Equal(100, tv.UploadCapKBps);
+        Assert.Equal(100, phone.DownloadCapKBps);
+        Assert.Equal(100, phone.UploadCapKBps);
+        Assert.Equal(0, pc.DownloadCapKBps); // Local PC unharmed
+    }
+
+    [Fact]
+    public void SmartSchedule_ThrottlesNewlyDiscoveredDevices_WhileTriggerIsActive()
+    {
+        var engine = new SmartScheduleEngine();
+        engine.PopulateDefaultRules();
+
+        Ipv4Address.TryParse("192.168.1.10", out Ipv4Address tvIp);
+        MacAddress.TryParse("00:11:22:33:44:10", out MacAddress tvMac);
+        var tv = new NetworkDevice(tvIp, tvMac) { DeviceCategory = "Media/Console" };
+
+        List<NetworkDevice> devices = [tv];
+
+        // Trigger rule
+        engine.Evaluate(80.0, devices, DateTime.Now);
+        Assert.Equal(100, tv.DownloadCapKBps);
+
+        // A new mobile device appears while high ping persists
+        Ipv4Address.TryParse("192.168.1.20", out Ipv4Address mobIp);
+        MacAddress.TryParse("00:11:22:33:44:20", out MacAddress mobMac);
+        var mobile = new NetworkDevice(mobIp, mobMac) { DeviceCategory = "Mobile" };
+        devices.Add(mobile);
+
+        engine.Evaluate(85.0, devices, DateTime.Now);
+        Assert.Equal(100, mobile.DownloadCapKBps);
+
+        // Ping recovers
+        engine.Evaluate(20.0, devices, DateTime.Now);
+        Assert.Equal(0, tv.DownloadCapKBps);
+        Assert.Equal(0, mobile.DownloadCapKBps);
+    }
 }
