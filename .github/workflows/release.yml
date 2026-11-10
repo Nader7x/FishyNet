@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (e.g. 3.2.0)'
+        description: 'Release version (e.g. 3.3.0)'
         required: true
-        default: '3.2.0'
+        default: '3.3.0'
       draft:
         description: 'Create as draft'
         type: boolean
