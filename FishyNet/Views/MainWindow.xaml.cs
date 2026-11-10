@@ -76,21 +76,17 @@ public partial class MainWindow : Window
             int darkMode = 1;
             _ = DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref darkMode, sizeof(int));
 
-            // Premium dark charcoal caption color (COLORREF 0x00BBGGRR -> #121316 = 0x00161312)
-            int captionColor = 0x00161312;
+            // Solid matte basalt caption color (COLORREF 0x00BBGGRR -> #111317 = 0x00171311)
+            int captionColor = 0x00171311;
             _ = DwmSetWindowAttribute(hwnd, DWMWA_CAPTION_COLOR, ref captionColor, sizeof(int));
 
             // Crisp text color (#F8FAFC = 0x00FCFAF8)
             int textColor = 0x00FCFAF8;
             _ = DwmSetWindowAttribute(hwnd, DWMWA_TEXT_COLOR, ref textColor, sizeof(int));
 
-            // Premium neutral slate-grey border (#2C2F38 = 0x00382F2C)
-            int borderColor = 0x00382F2C;
+            // 1px solid hairline border (#2A2E38 = 0x00382E2A)
+            int borderColor = 0x00382E2A;
             _ = DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, ref borderColor, sizeof(int));
-
-            // Enable DWM Acrylic Frosted Glass backdrop on Windows 11 22H2+
-            int backdropType = DWMSBT_TRANSIENTWINDOW;
-            _ = DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, ref backdropType, sizeof(int));
         }
         catch
         {

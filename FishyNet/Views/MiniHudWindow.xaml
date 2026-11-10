@@ -3,10 +3,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="FishyNet Mini HUD"
         Width="640"
-        Height="46"
+        Height="36"
         WindowStyle="None"
-        AllowsTransparency="True"
-        Background="Transparent"
+        AllowsTransparency="False"
+        Background="{StaticResource CanvasBgBrush}"
         Topmost="True"
         ShowInTaskbar="False"
         ResizeMode="NoResize"
@@ -14,16 +14,12 @@
         SnapsToDevicePixels="True"
         UseLayoutRounding="True">
 
-    <Border Background="#E613151C"
+    <Border Background="{StaticResource SurfaceBgBrush}"
             BorderBrush="{StaticResource BorderSubtleBrush}"
             BorderThickness="1"
-            CornerRadius="6"
-            Padding="10,4"
+            Padding="8,2"
             MouseLeftButtonDown="OnHeaderMouseLeftButtonDown"
             Cursor="SizeAll">
-        <Border.Effect>
-            <DropShadowEffect BlurRadius="18" ShadowDepth="3" Opacity="0.55" Color="#000000" />
-        </Border.Effect>
 
         <Grid VerticalAlignment="Center">
             <Grid.ColumnDefinitions>
@@ -48,84 +44,87 @@
 
             <!-- Brand Drag Badge -->
             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                <Border Background="#142E28" BorderBrush="#10B981" BorderThickness="1" CornerRadius="3" Padding="5,2" Margin="0,0,6,0">
-                    <TextBlock Text="HUD" FontFamily="{StaticResource MonoFont}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" />
+                <Border Background="#111317" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="4,1" Margin="0,0,6,0">
+                    <TextBlock Text="HUD" FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" />
                 </Border>
-                <TextBlock Text="FISHYNET" FontSize="11.5" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                <TextBlock Text="FISHYNET" FontFamily="{StaticResource MonoFont}" FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
             </StackPanel>
 
             <!-- Live LAN Download -->
             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                <TextBlock Text="▼ " FontSize="11" Foreground="{StaticResource AccentSkyBrush}" FontWeight="Bold" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding TotalDownloadText}" FontFamily="{StaticResource MonoFont}" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" VerticalAlignment="Center" />
+                <TextBlock Text="RX " FontFamily="{StaticResource MonoFont}" FontSize="9.5" Foreground="{StaticResource TextMutedBrush}" FontWeight="Bold" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding TotalDownloadText}" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" VerticalAlignment="Center" />
             </StackPanel>
 
             <!-- Live LAN Upload -->
             <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
-                <TextBlock Text="▲ " FontSize="11" Foreground="{StaticResource AccentVioletBrush}" FontWeight="Bold" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding TotalUploadText}" FontFamily="{StaticResource MonoFont}" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource AccentVioletBrush}" VerticalAlignment="Center" />
+                <TextBlock Text="TX " FontFamily="{StaticResource MonoFont}" FontSize="9.5" Foreground="{StaticResource TextMutedBrush}" FontWeight="Bold" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding TotalUploadText}" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource AccentVioletBrush}" VerticalAlignment="Center" />
             </StackPanel>
 
             <!-- Gateway Ping RTT -->
             <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Center">
-                <Border Width="6" Height="6" CornerRadius="3" Background="{StaticResource AccentEmeraldBrush}" Margin="0,0,5,0" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding GatewayLatencyText}" FontFamily="{StaticResource MonoFont}" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource AccentEmeraldBrush}" VerticalAlignment="Center" />
+                <Border Width="4" Height="4" Background="{StaticResource AccentEmeraldBrush}" Margin="0,0,4,0" VerticalAlignment="Center" />
+                <TextBlock Text="RTT " FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding GatewayLatencyText}" FontFamily="{StaticResource MonoFont}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" VerticalAlignment="Center" />
             </StackPanel>
 
             <!-- Hosts Count -->
             <StackPanel Grid.Column="8" Orientation="Horizontal" VerticalAlignment="Center">
-                <TextBlock Text="Hosts: " FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding OnlineDevicesCount}" FontFamily="{StaticResource MonoFont}" FontSize="11.5" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                <TextBlock Text="HOSTS: " FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding OnlineDevicesCount}" FontFamily="{StaticResource MonoFont}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
             </StackPanel>
 
             <!-- Right Controls: Boost Button & Full Dashboard Toggle -->
             <StackPanel Grid.Column="10" Orientation="Horizontal" VerticalAlignment="Center">
                 <!-- 1-Click Gaming Boost Toggle Button -->
                 <Button Command="{Binding ToggleGamingBoostCommand}"
-                        Padding="9,3"
-                        Margin="0,0,6,0"
-                        FontSize="11"
+                        Padding="6,1"
+                        Margin="0,0,4,0"
+                        FontSize="9.5"
+                        FontFamily="{StaticResource MonoFont}"
                         FontWeight="Bold"
                         Cursor="Hand"
-                        ToolTip="1-Click Gaming Priority: Throttles all other LAN devices to 64 KB/s to preserve gaming latency. Click again to restore.">
+                        ToolTip="1-Click Gaming Priority: Throttles all other background devices to 64 KB/s">
                     <Button.Style>
                         <Style TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
-                            <Setter Property="Background" Value="#1C2D42" />
-                            <Setter Property="BorderBrush" Value="#38BDF8" />
-                            <Setter Property="Foreground" Value="#38BDF8" />
+                            <Setter Property="Background" Value="#181B21" />
+                            <Setter Property="BorderBrush" Value="{StaticResource AccentSkyBrush}" />
+                            <Setter Property="Foreground" Value="{StaticResource AccentSkyBrush}" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsGamingBoostActive}" Value="True">
-                                    <Setter Property="Background" Value="#A16207" />
-                                    <Setter Property="BorderBrush" Value="#F59E0B" />
+                                    <Setter Property="Background" Value="#3B230B" />
+                                    <Setter Property="BorderBrush" Value="{StaticResource AccentAmberBrush}" />
                                     <Setter Property="Foreground" Value="#FEF08A" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
                     </Button.Style>
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="⚡ " FontSize="11" />
-                        <TextBlock Text="{Binding GamingBoostButtonText}" />
-                    </StackPanel>
+                    <TextBlock Text="{Binding GamingBoostButtonText}" />
                 </Button>
 
-                <!-- Restore / Maximize Full App -->
-                <Button Content="⛶ Dashboard"
+                <!-- Restore Full App -->
+                <Button Content="DASHBOARD"
                         Click="OnRestoreFullWindowClicked"
                         Style="{StaticResource SecondaryButtonStyle}"
-                        Padding="7,3"
-                        FontSize="11"
-                        Margin="0,0,4,0"
+                        Height="20"
+                        Padding="5,1"
+                        FontSize="9"
+                        FontFamily="{StaticResource MonoFont}"
+                        Margin="0,0,3,0"
                         Cursor="Hand"
-                        ToolTip="Restore FishyNet main window dashboard" />
+                        ToolTip="Restore main engineering console" />
 
                 <!-- Close HUD -->
-                <Button Content="✕"
+                <Button Content="[X]"
                         Click="OnCloseHudClicked"
                         Style="{StaticResource SecondaryButtonStyle}"
-                        Padding="7,3"
-                        FontSize="11"
+                        Height="20"
+                        Padding="4,1"
+                        FontSize="9"
+                        FontFamily="{StaticResource MonoFont}"
                         Cursor="Hand"
-                        ToolTip="Close Mini HUD and return to main window" />
+                        ToolTip="Close Mini HUD" />
             </StackPanel>
         </Grid>
     </Border>

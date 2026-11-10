@@ -3,12 +3,12 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FishyNet.Controls"
         xmlns:vm="clr-namespace:FishyNet.ViewModels"
-        Title="FishyNet — LAN Bandwidth Shaper &amp; Usage Telemetry"
-        Width="1480"
-        Height="870"
-        MinWidth="1160"
-        MinHeight="680"
-        Background="#B8111216"
+        Title="FishyNet — High-Performance LAN Bandwidth Shaper &amp; Telemetry"
+        Width="1440"
+        Height="860"
+        MinWidth="1100"
+        MinHeight="660"
+        Background="{StaticResource CanvasBgBrush}"
         Foreground="{StaticResource TextPrimaryBrush}"
         FontFamily="{StaticResource SansFont}"
         SnapsToDevicePixels="True"
@@ -16,1462 +16,1016 @@
         WindowStartupLocation="CenterScreen">
 
     <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="46" ResizeBorderThickness="6" GlassFrameThickness="1" CornerRadius="0" UseAeroCaptionButtons="False" />
+        <WindowChrome CaptionHeight="34" ResizeBorderThickness="5" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False" />
     </WindowChrome.WindowChrome>
 
-    <Grid>
-        <!-- Frosted Glass Specular Ambient Backdrop -->
-        <Grid.Background>
-            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                <GradientStop Color="#D813151B" Offset="0.0" />
-                <GradientStop Color="#C016181F" Offset="0.45" />
-                <GradientStop Color="#D8121318" Offset="1.0" />
-            </LinearGradientBrush>
-        </Grid.Background>
-
+    <Grid Background="{StaticResource CanvasBgBrush}">
         <Grid.RowDefinitions>
-            <!-- Top Navigation & Adapter Control Bar -->
+            <!-- 0: Hardware Title & Master Command Ribbon -->
+            <RowDefinition Height="34" />
+            <!-- 1: Filter & Secondary Action Toolbar -->
             <RowDefinition Height="Auto" />
-            <!-- Live Telemetry Strip -->
-            <RowDefinition Height="Auto" />
-            <!-- Main Workspace & Inspector Drawer -->
+            <!-- 2: Primary Split Workspace (Master DataGrid + Collapsible Dock + Inspector) -->
             <RowDefinition Height="*" />
-            <!-- Bottom Status Footer -->
-            <RowDefinition Height="30" />
+            <!-- 3: Bottom Status Bar -->
+            <RowDefinition Height="24" />
         </Grid.RowDefinitions>
 
-        <!-- 1. CUSTOM BORDERLESS WINDOW CHROME & TOP COMMAND BAR -->
+        <!-- =========================================================================
+             ROW 0: HARDWARE TITLE & MASTER COMMAND RIBBON (HEIGHT 34)
+             High draggable surface area: identity, NIC, primary telemetry, core actions
+             ========================================================================= -->
         <Border Grid.Row="0"
                 Background="{StaticResource SurfaceBgBrush}"
                 BorderBrush="{StaticResource BorderSubtleBrush}"
                 BorderThickness="0,0,0,1"
-                Padding="12,6,8,6">
+                Padding="8,0,0,0">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <!-- Brand & Version -->
                     <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="14" />
-                    <!-- NIC Selector -->
-                    <ColumnDefinition Width="265" />
-                    <ColumnDefinition Width="14" />
-                    <!-- Live Speed Ticker -->
+                    <!-- Hardware NIC Selector -->
                     <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="14" />
-                    <!-- Quick Actions -->
+                    <!-- Inline Real-time Telemetry with Hairlines -->
+                    <ColumnDefinition Width="Auto" />
+                    <!-- Primary Control Actions -->
+                    <ColumnDefinition Width="Auto" />
+                    <!-- Draggable Caption Space -->
                     <ColumnDefinition Width="*" />
+                    <!-- Window Controls (Min, Max, Close) -->
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <!-- Brand Title -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Background="#1C1E25" BorderBrush="#2F323D" BorderThickness="1" CornerRadius="3" Padding="3" Margin="0,0,9,0">
-                        <Image x:Name="BrandLogoImage" Width="24" Height="24" RenderOptions.BitmapScalingMode="HighQuality" />
+                <!-- Brand & Version Tag -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+                    <Border Background="#111317" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="2" Margin="0,0,7,0">
+                        <Image x:Name="BrandLogoImage" Width="16" Height="16" RenderOptions.BitmapScalingMode="NearestNeighbor" />
                     </Border>
-                    <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="FISHYNET" FontSize="13.5" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
-                        <TextBlock Text="Packet Shaper &amp; LAN Telemetry" FontSize="9.5" Foreground="{StaticResource TextSecondaryBrush}" />
-                    </StackPanel>
+                    <TextBlock Text="FISHYNET" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                    <TextBlock Text="v3.2.0" FontFamily="{StaticResource MonoFont}" FontSize="9.5" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" Margin="5,1,0,0" />
                 </StackPanel>
 
-                <!-- Network Interface Selector -->
-                <StackPanel Grid.Column="2" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True">
-                    <TextBlock Text="NIC ADAPTER" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,2" />
+                <!-- Hardware NIC Selector -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True" Margin="0,0,14,0">
+                    <TextBlock Text="NIC:" FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" Margin="0,0,5,0" />
                     <ComboBox ItemsSource="{Binding Adapters}"
                               SelectedItem="{Binding SelectedAdapter}"
-                              Height="26"
-                              FontSize="11.5">
+                              Height="22"
+                              Width="200"
+                              FontSize="10.5">
                         <ComboBox.ItemTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="{Binding Description}" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" MaxWidth="155" />
-                                    <TextBlock Text=" · " Foreground="#64748B" />
-                                    <TextBlock Text="{Binding LocalIp}" FontFamily="{StaticResource MonoFont}" Foreground="#38BDF8" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding Description}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="115" />
+                                    <TextBlock Text=" · " Foreground="{StaticResource TextMutedBrush}" />
+                                    <TextBlock Text="{Binding LocalIp}" FontFamily="{StaticResource MonoFont}" Foreground="{StaticResource AccentSkyBrush}" FontWeight="Bold" />
                                 </StackPanel>
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>
                 </StackPanel>
 
-                <!-- Live LAN Speed Ticker -->
-                <Border Grid.Column="4"
-                        Background="#161820"
-                        BorderBrush="#2C2F3A"
-                        BorderThickness="1"
-                        CornerRadius="3"
-                        Padding="10,5"
-                        VerticalAlignment="Center">
-                    <TextBlock Text="{Binding TotalSpeedTickerText}"
-                               FontFamily="{StaticResource MonoFont}"
-                               FontSize="11"
-                               FontWeight="SemiBold"
-                               Foreground="{StaticResource TextPrimaryBrush}"
-                               VerticalAlignment="Center" />
-                </Border>
+                <!-- Inline Real-time Hardware Telemetry (Separated by 1px Hairlines) -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,0">
+                    <Rectangle Width="1" Height="16" Fill="{StaticResource BorderSubtleBrush}" Margin="0,0,10,0" VerticalAlignment="Center" />
+                    <TextBlock Text="RX " FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding TotalDownloadText}" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
 
-                <!-- Primary Action Buttons & Mode Toggles -->
-                <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right" WindowChrome.IsHitTestVisibleInChrome="True">
-                    <Button Content="Scan"
+                    <TextBlock Text="TX " FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding TotalUploadText}" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource AccentVioletBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
+
+                    <Rectangle Width="1" Height="16" Fill="{StaticResource BorderSubtleBrush}" Margin="0,0,10,0" VerticalAlignment="Center" />
+                    <TextBlock Text="PK " FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding PeakDownloadText}" FontFamily="{StaticResource MonoFont}" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
+
+                    <TextBlock Text="SES " FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding SessionTotalText}" FontFamily="{StaticResource MonoFont}" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
+
+                    <Rectangle Width="1" Height="16" Fill="{StaticResource BorderSubtleBrush}" Margin="0,0,10,0" VerticalAlignment="Center" />
+                    <TextBlock Text="RTT " FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding GatewayLatencyText}" FontFamily="{StaticResource MonoFont}" FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" VerticalAlignment="Center" />
+                    <Rectangle Width="1" Height="16" Fill="{StaticResource BorderSubtleBrush}" Margin="10,0,0,0" VerticalAlignment="Center" />
+                </StackPanel>
+
+                <!-- Primary Master Actions -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True" Margin="0,0,8,0">
+                    <Button Content="SCAN"
                             Command="{Binding ScanSubnetCommand}"
                             Style="{StaticResource SecondaryButtonStyle}"
-                            Padding="8,4"
-                            FontSize="11"
-                            Margin="0,0,5,0"
-                            ToolTip="Send ARP probes across subnet to discover devices" />
+                            Height="22"
+                            Padding="8,1"
+                            FontSize="10"
+                            FontFamily="{StaticResource MonoFont}"
+                            Margin="0,0,4,0"
+                            ToolTip="Broadcast ARP probe queries across active subnet" />
 
                     <Button Content="{Binding RedirectionButtonText}"
                             Command="{Binding ToggleRedirectionCommand}"
                             Style="{StaticResource PrimaryButtonStyle}"
-                            Padding="9,4"
-                            FontSize="11"
-                            Margin="0,0,6,0"
-                            ToolTip="Start or stop ARP redirection and bandwidth shaping" />
+                            Height="22"
+                            Padding="10,1"
+                            FontSize="10"
+                            FontFamily="{StaticResource MonoFont}"
+                            Margin="0,0,4,0"
+                            ToolTip="Toggle live ARP redirection and rate regulation" />
 
-                    <!-- 1-Click Gaming Boost Button -->
                     <Button Command="{Binding ToggleGamingBoostCommand}"
-                            Padding="8,4"
-                            FontSize="11"
+                            Height="22"
+                            Padding="8,1"
+                            FontSize="10"
+                            FontFamily="{StaticResource MonoFont}"
                             FontWeight="Bold"
-                            Margin="0,0,6,0"
-                            Cursor="Hand"
-                            ToolTip="1-Click Gaming Priority: Throttles all other devices to preserve LAN ping and gaming latency.">
+                            ToolTip="Enforce immediate 64 KB/s throttle on all background hosts to secure gaming RTT">
                         <Button.Style>
                             <Style TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
-                                <Setter Property="Background" Value="#1C2D42" />
-                                <Setter Property="BorderBrush" Value="#38BDF8" />
-                                <Setter Property="Foreground" Value="#38BDF8" />
+                                <Setter Property="Background" Value="#181B21" />
+                                <Setter Property="BorderBrush" Value="{StaticResource AccentSkyBrush}" />
+                                <Setter Property="Foreground" Value="{StaticResource AccentSkyBrush}" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsGamingBoostActive}" Value="True">
-                                        <Setter Property="Background" Value="#A16207" />
-                                        <Setter Property="BorderBrush" Value="#F59E0B" />
+                                        <Setter Property="Background" Value="#3B230B" />
+                                        <Setter Property="BorderBrush" Value="{StaticResource AccentAmberBrush}" />
                                         <Setter Property="Foreground" Value="#FEF08A" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </Button.Style>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="⚡ " FontSize="10.5" />
-                            <TextBlock Text="{Binding GamingBoostButtonText}" />
-                        </StackPanel>
+                        <TextBlock Text="{Binding GamingBoostButtonText}" />
                     </Button>
+                </StackPanel>
 
-                    <!-- Mini-HUD Toggle Button -->
-                    <Button Content="Mini HUD"
+                <!-- Column 4 is empty, providing generous natural drag area for the WindowChrome -->
+
+                <!-- Window Control Buttons (Native Windows 10 Vector Chrome) -->
+                <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True">
+                    <Button Command="{Binding MinimizeWindowCommand}"
+                            Style="{StaticResource WindowChromeButtonStyle}"
+                            ToolTip="Minimize">
+                        <Path Data="M 0,0 L 10,0" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1" SnapsToDevicePixels="True" />
+                    </Button>
+                    <Button Command="{Binding MaximizeWindowCommand}"
+                            Style="{StaticResource WindowChromeButtonStyle}"
+                            ToolTip="Maximize / Restore">
+                        <Path Data="M 0.5,0.5 L 9.5,0.5 L 9.5,9.5 L 0.5,9.5 Z" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1" SnapsToDevicePixels="True" />
+                    </Button>
+                    <Button Command="{Binding CloseWindowCommand}"
+                            Style="{StaticResource WindowChromeCloseButtonStyle}"
+                            ToolTip="Close">
+                        <Path Data="M 0,0 L 9,9 M 9,0 L 0,9" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.2" SnapsToDevicePixels="True" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- =========================================================================
+             ROW 1: FILTER & SECONDARY ACTION TOOLBAR (HEIGHT AUTO)
+             Hosts, search, filters, presets, and secondary tool shortcuts
+             ========================================================================= -->
+        <Border Grid.Row="1"
+                Background="#14171E"
+                BorderBrush="{StaticResource BorderSubtleBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="8,5">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <!-- Search Input -->
+                    <ColumnDefinition Width="200" />
+                    <ColumnDefinition Width="8" />
+                    <!-- Status Filter Tags -->
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="10" />
+                    <!-- Rate Limit Presets -->
+                    <ColumnDefinition Width="Auto" />
+                    <!-- Discovered Hosts Counter -->
+                    <ColumnDefinition Width="*" />
+                    <!-- Secondary Utilities & Export -->
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Search Input -->
+                <TextBox Grid.Column="0"
+                         Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged}"
+                         Style="{StaticResource DarkTextBoxStyle}"
+                         Height="22"
+                         FontSize="10.5"
+                         FontFamily="{StaticResource MonoFont}"
+                         ToolTip="Filter hosts by Display Name, IPv4, MAC, or OUI Vendor" />
+
+                <!-- Status Filter Tags -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="FILTER:" FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" Margin="0,0,4,0" />
+                    <Button Content="ALL" Command="{Binding SetStatusFilterCommand}" CommandParameter="All" Style="{StaticResource SecondaryButtonStyle}" Height="20" Padding="5,1" FontSize="9" Margin="0,0,2,0" />
+                    <Button Content="ACTIVE" Command="{Binding SetStatusFilterCommand}" CommandParameter="Active" Style="{StaticResource SecondaryButtonStyle}" Height="20" Padding="5,1" FontSize="9" Margin="0,0,2,0" />
+                    <Button Content="THROTTLED" Command="{Binding SetStatusFilterCommand}" CommandParameter="Throttled" Style="{StaticResource SecondaryButtonStyle}" Height="20" Padding="5,1" FontSize="9" Margin="0,0,2,0" />
+                    <Button Content="BLOCKED" Command="{Binding SetStatusFilterCommand}" CommandParameter="Blocked" Style="{StaticResource SecondaryButtonStyle}" Height="20" Padding="5,1" FontSize="9" Margin="0,0,2,0" />
+                    <Button Content="BYPASSED" Command="{Binding SetStatusFilterCommand}" CommandParameter="Bypassed" Style="{StaticResource SecondaryButtonStyle}" Height="20" Padding="5,1" FontSize="9" />
+                </StackPanel>
+
+                <!-- Rate Limit Presets Selector -->
+                <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="PRESET:" FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" Margin="0,0,4,0" />
+                    <ItemsControl ItemsSource="{Binding Presets}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Content="{Binding Name}"
+                                        Command="{Binding DataContext.ApplyPresetToAllLanCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        CommandParameter="{Binding}"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        Height="20"
+                                        Padding="5,1"
+                                        FontSize="9"
+                                        FontFamily="{StaticResource MonoFont}"
+                                        Margin="0,0,2,0"
+                                        ToolTip="{Binding Description}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <!-- Discovered Hosts Counter -->
+                <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,12,0">
+                    <TextBlock Text="HOSTS: " FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" />
+                    <TextBlock Text="{Binding OnlineDevicesCount}" FontFamily="{StaticResource MonoFont}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
+                    <TextBlock Text=" · THROTTLED: " FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextMutedBrush}" />
+                    <TextBlock Text="{Binding ThrottledDevicesCount}" FontFamily="{StaticResource MonoFont}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource AccentAmberBrush}" />
+                    <TextBlock Text=" · BLOCKED: " FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextMutedBrush}" />
+                    <TextBlock Text="{Binding BlockedDevicesCount}" FontFamily="{StaticResource MonoFont}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource AccentCrimsonBrush}" />
+                </StackPanel>
+
+                <!-- Secondary Utilities & Actions -->
+                <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="MINI HUD"
                             Command="{Binding ToggleMiniHudCommand}"
                             Style="{StaticResource SecondaryButtonStyle}"
-                            Padding="8,4"
-                            FontSize="11"
-                            Margin="0,0,6,0"
-                            ToolTip="Switch to Compact Floating Mini-HUD Widget mode for gaming overlay" />
+                            Height="20"
+                            Padding="6,1"
+                            FontSize="9"
+                            FontFamily="{StaticResource MonoFont}"
+                            Margin="0,0,4,0"
+                            ToolTip="Toggle lightweight desktop gaming overlay widget" />
 
-                    <!-- Unit Toggle Button -->
                     <Button Content="{Binding UnitModeButtonText}"
                             Command="{Binding ToggleUnitModeCommand}"
                             Style="{StaticResource SecondaryButtonStyle}"
-                            Padding="8,4"
-                            FontSize="11"
-                            Margin="0,0,6,0"
-                            ToolTip="Switch speed representations between Bytes/sec (KB/s, MB/s) and ISP Bits/sec (Kbps, Mbps)" />
+                            Height="20"
+                            Padding="5,1"
+                            FontSize="9"
+                            FontFamily="{StaticResource MonoFont}"
+                            Margin="0,0,4,0"
+                            ToolTip="Toggle throughput format between Bytes/sec (KB/s) and ISP Bits/sec (Kbps)" />
 
-                    <!-- Inspector Drawer Toggle -->
-                    <Button Content="Inspector"
+                    <Button Content="INSPECT"
                             Command="{Binding ToggleInspectorCommand}"
                             Style="{StaticResource SecondaryButtonStyle}"
-                            Padding="8,4"
-                            FontSize="11"
-                            Margin="0,0,10,0"
-                            ToolTip="Toggle the collapsible right-side Device Inspector drawer" />
+                            Height="20"
+                            Padding="6,1"
+                            FontSize="9"
+                            FontFamily="{StaticResource MonoFont}"
+                            Margin="0,0,4,0"
+                            ToolTip="Toggle right-side hardware device inspector drawer" />
 
-                    <CheckBox Content="Tray"
+                    <Button Content="EXPORT CSV"
+                            Command="{Binding ExportDevicesCsvCommand}"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Height="20"
+                            Padding="6,1"
+                            FontSize="9"
+                            FontFamily="{StaticResource MonoFont}"
+                            Margin="0,0,8,0"
+                            ToolTip="Export current device telemetry ledger to CSV" />
+
+                    <CheckBox Content="TRAY"
                               IsChecked="{Binding CloseToTray}"
                               VerticalAlignment="Center"
-                              FontSize="11"
+                              FontSize="9"
+                              FontFamily="{StaticResource MonoFont}"
                               Foreground="{StaticResource TextSecondaryBrush}"
-                              Margin="0,0,12,0"
-                              ToolTip="Keep FishyNet running in the system tray when window is closed" />
-                </StackPanel>
-
-                <!-- Custom Window Control Buttons (Minimize, Maximize, Close) -->
-                <StackPanel Grid.Column="7" Orientation="Horizontal" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True">
-                    <Button Content="🗕"
-                            Command="{Binding MinimizeWindowCommand}"
-                            Style="{StaticResource WindowChromeButtonStyle}"
-                            ToolTip="Minimize to Taskbar / Tray" />
-                    <Button Content="🗖"
-                            Command="{Binding MaximizeWindowCommand}"
-                            Style="{StaticResource WindowChromeButtonStyle}"
-                            ToolTip="Maximize / Restore" />
-                    <Button Content="✕"
-                            Command="{Binding CloseWindowCommand}"
-                            Style="{StaticResource WindowChromeCloseButtonStyle}"
-                            ToolTip="Close Window" />
+                              ToolTip="Keep packet shaper running in system tray on window close" />
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- 2. TOP FROSTED TELEMETRY STRIP -->
-        <Border Grid.Row="1"
-                Background="#8813151C"
-                BorderBrush="{StaticResource BorderSubtleBrush}"
-                BorderThickness="0,0,0,1"
-                Padding="16,9">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="188" />
-                    <ColumnDefinition Width="188" />
-                    <ColumnDefinition Width="182" />
-                    <ColumnDefinition Width="205" />
-                    <ColumnDefinition Width="188" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-
-                <!-- Live Download Metric -->
-                <Border Grid.Column="0" Background="{StaticResource GlassCardBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="3" Margin="0,0,8,0">
-                    <Grid>
-                        <Border Height="2" VerticalAlignment="Top" Background="{StaticResource AccentSkyBrush}" CornerRadius="2,2,0,0" />
-                        <StackPanel Margin="12,8,12,7">
-                            <TextBlock Text="LAN DOWNLOAD RATE" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding TotalDownloadText}" FontFamily="{StaticResource MonoFont}" FontSize="19" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" Margin="0,2,0,2" />
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Peak: " FontSize="10.5" Foreground="{StaticResource TextMutedBrush}" />
-                                <TextBlock Text="{Binding PeakDownloadText}" FontFamily="{StaticResource MonoFont}" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" />
-                            </StackPanel>
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
-                <!-- Live Upload Metric -->
-                <Border Grid.Column="1" Background="{StaticResource GlassCardBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="3" Margin="0,0,8,0">
-                    <Grid>
-                        <Border Height="2" VerticalAlignment="Top" Background="{StaticResource AccentVioletBrush}" CornerRadius="2,2,0,0" />
-                        <StackPanel Margin="12,8,12,7">
-                            <TextBlock Text="LAN UPLOAD RATE" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding TotalUploadText}" FontFamily="{StaticResource MonoFont}" FontSize="19" FontWeight="Bold" Foreground="{StaticResource AccentVioletBrush}" Margin="0,2,0,2" />
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Session: " FontSize="10.5" Foreground="{StaticResource TextMutedBrush}" />
-                                <TextBlock Text="{Binding SessionTotalText}" FontFamily="{StaticResource MonoFont}" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" />
-                            </StackPanel>
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
-                <!-- Connected Hosts Summary -->
-                <Border Grid.Column="2" Background="{StaticResource GlassCardBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="3" Margin="0,0,8,0">
-                    <Grid>
-                        <Border Height="2" VerticalAlignment="Top" Background="{StaticResource AccentAmberBrush}" CornerRadius="2,2,0,0" />
-                        <StackPanel Margin="12,8,12,7">
-                            <TextBlock Text="DISCOVERED HOSTS" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding OnlineDevicesCount}" FontFamily="{StaticResource MonoFont}" FontSize="19" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,2,0,2" />
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Capped: " FontSize="10.5" Foreground="{StaticResource AccentAmberBrush}" />
-                                <TextBlock Text="{Binding ThrottledDevicesCount}" FontFamily="{StaticResource MonoFont}" FontSize="10.5" Foreground="{StaticResource AccentAmberBrush}" Margin="0,0,8,0" />
-                                <TextBlock Text="Blocked: " FontSize="10.5" Foreground="{StaticResource AccentCrimsonBrush}" />
-                                <TextBlock Text="{Binding BlockedDevicesCount}" FontFamily="{StaticResource MonoFont}" FontSize="10.5" Foreground="{StaticResource AccentCrimsonBrush}" />
-                            </StackPanel>
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
-                <!-- Gateway & ARP Guard Health -->
-                <Border Grid.Column="3" Background="{StaticResource GlassCardBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="3" Margin="0,0,8,0">
-                    <Grid>
-                        <Border Height="2" VerticalAlignment="Top" Background="{StaticResource AccentEmeraldBrush}" CornerRadius="2,2,0,0" />
-                        <StackPanel Margin="12,8,12,7">
-                            <TextBlock Text="GATEWAY &amp; SECURITY" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" />
-                            <StackPanel Orientation="Horizontal" Margin="0,3,0,3">
-                                <TextBlock Text="Ping RTT: " FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
-                                <TextBlock Text="{Binding GatewayLatencyText}" FontFamily="{StaticResource MonoFont}" FontSize="14.5" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" VerticalAlignment="Center" />
-                            </StackPanel>
-                            <TextBlock Text="{Binding ArpGuardStatusText}" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource AccentEmeraldBrush}" TextTrimming="CharacterEllipsis" />
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
-                <!-- Historical 7-Day Quick Summary -->
-                <Border Grid.Column="4" Background="{StaticResource GlassCardBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="3" Margin="0,0,8,0">
-                    <Grid>
-                        <Border Height="2" VerticalAlignment="Top" Background="#38BDF8" CornerRadius="2,2,0,0" />
-                        <StackPanel Margin="12,8,12,7">
-                            <TextBlock Text="RECORDED USAGE" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding HistoryGrandTotalText}" FontFamily="{StaticResource MonoFont}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,2,0,2" />
-                            <TextBlock Text="{Binding SelectedHistoryRangeTitle}" FontSize="10" Foreground="{StaticResource TextMutedBrush}" TextTrimming="CharacterEllipsis" />
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
-                <!-- Live 60s Dual Sparkline Chart -->
-                <Border Grid.Column="5" Background="{StaticResource GlassCardBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="3" Padding="10,6">
-                    <Grid>
-                        <controls:SparklineControl PrimarySeries="{Binding NetworkDownloadSeries}"
-                                                   SecondarySeries="{Binding NetworkUploadSeries}"
-                                                   ShowGridLines="True" />
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,0,4,0">
-                            <Border Width="7" Height="7" CornerRadius="1.5" Background="{StaticResource AccentSkyBrush}" Margin="0,0,4,0" />
-                            <TextBlock Text="Down" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,10,0" />
-                            <Border Width="7" Height="7" CornerRadius="1.5" Background="{StaticResource AccentVioletBrush}" Margin="0,0,4,0" />
-                            <TextBlock Text="Up (60s)" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" />
-                        </StackPanel>
-                    </Grid>
-                </Border>
-            </Grid>
-        </Border>
-
-        <!-- 3. MAIN WORKSPACE AREA -->
-        <Grid Grid.Row="2" Margin="16,10,16,10">
+        <!-- =========================================================================
+             ROW 2: PRIMARY SPLIT WORKSPACE
+             Column 0: Master Device DataGrid + Collapsible Bottom Dock
+             Column 1: Collapsible Right-Side Device Inspector Drawer
+             ========================================================================= -->
+        <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
+                <!-- Main Master Viewport & Dock -->
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
+                <!-- Collapsible Inspector Drawer -->
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <!-- Left/Center Tabbed Workspace -->
-            <TabControl Grid.Column="0" SelectedIndex="{Binding ActiveWorkspaceTab}">
+            <!-- Column 0: Split Grid (Upper: Master DataGrid, Lower: Bottom Instrument Dock) -->
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <!-- Upper Master Viewport: Virtualized Device DataGrid (Primary Top 65%) -->
+                    <RowDefinition Height="3*" MinHeight="160" />
+                    <!-- GridSplitter Divider -->
+                    <RowDefinition Height="4" />
+                    <!-- Lower Collapsible Instrument Dock (Bottom 35%) -->
+                    <RowDefinition Height="2*" MinHeight="130" />
+                </Grid.RowDefinitions>
 
-                <!-- TAB 1: LIVE DEVICES & BANDWIDTH SHAPER -->
-                <TabItem Header="Live Devices &amp; Bandwidth Control">
-                    <Grid Margin="0,8,0,0">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-
-                        <!-- Filter, Status Pills, View Switcher & Quick LAN Preset Bar -->
-                        <Border Grid.Row="0" Background="{StaticResource SurfaceBgBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="3" Padding="10,7" Margin="0,0,0,8">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="180" />
-                                    <ColumnDefinition Width="8" />
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="8" />
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="8" />
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-
-                                <TextBox Grid.Column="0"
-                                         Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged}"
-                                         Style="{StaticResource DarkTextBoxStyle}"
-                                         ToolTip="Search by Device Name, IP, MAC Address, or OUI Manufacturer" />
-
-                                <!-- View Mode Switcher: Table ↔ Bento ↔ Radar -->
-                                <Border Grid.Column="2" Background="#171920" BorderBrush="#2A2D36" BorderThickness="1" CornerRadius="3" Padding="2">
-                                    <StackPanel Orientation="Horizontal">
-                                        <Button Content="▤ Table"
-                                                Command="{Binding SetViewModeCommand}" CommandParameter="Table"
-                                                Padding="7,3" FontSize="11" Margin="0,0,2,0" Cursor="Hand">
-                                            <Button.Style>
-                                                <Style TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsTableView}" Value="True">
-                                                            <Setter Property="Background" Value="#242833" />
-                                                            <Setter Property="BorderBrush" Value="#38BDF8" />
-                                                            <Setter Property="Foreground" Value="#38BDF8" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Button.Style>
-                                        </Button>
-                                        <Button Content="▦ Bento"
-                                                Command="{Binding SetViewModeCommand}" CommandParameter="Bento"
-                                                Padding="7,3" FontSize="11" Margin="0,0,2,0" Cursor="Hand">
-                                            <Button.Style>
-                                                <Style TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsBentoView}" Value="True">
-                                                            <Setter Property="Background" Value="#242833" />
-                                                            <Setter Property="BorderBrush" Value="#38BDF8" />
-                                                            <Setter Property="Foreground" Value="#38BDF8" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Button.Style>
-                                        </Button>
-                                        <Button Content="🗲 Radar"
-                                                Command="{Binding SetViewModeCommand}" CommandParameter="Topology"
-                                                Padding="7,3" FontSize="11" Cursor="Hand">
-                                            <Button.Style>
-                                                <Style TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsTopologyView}" Value="True">
-                                                            <Setter Property="Background" Value="#242833" />
-                                                            <Setter Property="BorderBrush" Value="#38BDF8" />
-                                                            <Setter Property="Foreground" Value="#38BDF8" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Button.Style>
-                                        </Button>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Quick Status Filter Pills -->
-                                <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Button Content="All" Command="{Binding SetStatusFilterCommand}" CommandParameter="All" Style="{StaticResource SecondaryButtonStyle}" Padding="7,3" FontSize="11" Margin="0,0,3,0" />
-                                    <Button Content="Active" Command="{Binding SetStatusFilterCommand}" CommandParameter="Active" Style="{StaticResource SecondaryButtonStyle}" Padding="7,3" FontSize="11" Margin="0,0,3,0" />
-                                    <Button Content="Throttled" Command="{Binding SetStatusFilterCommand}" CommandParameter="Throttled" Style="{StaticResource SecondaryButtonStyle}" Padding="7,3" FontSize="11" Margin="0,0,3,0" />
-                                    <Button Content="Blocked" Command="{Binding SetStatusFilterCommand}" CommandParameter="Blocked" Style="{StaticResource SecondaryButtonStyle}" Padding="7,3" FontSize="11" Margin="0,0,3,0" />
-                                    <Button Content="Bypassed" Command="{Binding SetStatusFilterCommand}" CommandParameter="Bypassed" Style="{StaticResource SecondaryButtonStyle}" Padding="7,3" FontSize="11" />
-                                </StackPanel>
-
-                                <!-- Quick LAN Presets -->
-                                <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="Preset:" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,5,0" />
-                                    <ItemsControl ItemsSource="{Binding Presets}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <StackPanel Orientation="Horizontal" />
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Button Content="{Binding Name}"
-                                                        Command="{Binding DataContext.ApplyPresetToAllLanCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        CommandParameter="{Binding}"
-                                                        Style="{StaticResource SecondaryButtonStyle}"
-                                                        Padding="7,3"
-                                                        FontSize="10"
-                                                        Margin="0,0,3,0"
-                                                        ToolTip="{Binding Description}" />
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </StackPanel>
-
-                                <Button Grid.Column="8"
-                                        Content="Export CSV"
-                                        Command="{Binding ExportDevicesCsvCommand}"
-                                        Style="{StaticResource SecondaryButtonStyle}"
-                                        Padding="8,3"
-                                        FontSize="11" />
-                            </Grid>
-                        </Border>
-
-                        <Grid Grid.Row="1">
-                            <!-- VIEW 1: DATA GRID (Proportional Star Columns = Zero Horizontal Scrollbar!) -->
-                            <DataGrid ItemsSource="{Binding FilteredDevices}"
-                                      SelectedItem="{Binding SelectedDevice}"
-                                      AutoGenerateColumns="False"
-                                      CanUserSortColumns="True"
-                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                      IsReadOnly="False"
-                                      Visibility="{Binding IsTableView, Converter={StaticResource BoolToVis}}">
-                            <DataGrid.RowStyle>
-                                <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
-                                    <Setter Property="ContextMenu">
-                                        <Setter.Value>
-                                            <ContextMenu>
-                                                <MenuItem Header="Toggle Monitored / Bypassed State" Command="{Binding ToggleMonitoredCommand}" FontWeight="SemiBold" />
-                                                <MenuItem Header="Set Monitored (Redirect ARP)" Command="{Binding MonitorDeviceCommand}" />
-                                                <MenuItem Header="Set Bypassed (Direct to Router)" Command="{Binding BypassDeviceCommand}" />
-                                                <Separator />
-                                                <MenuItem Header="Clear Caps &amp; Unblock (Full Speed)" Command="{Binding ClearCapsCommand}" />
-                                                <MenuItem Header="Send Wake-on-LAN (WoL) Magic Packet" Command="{Binding DataContext.WakeSelectedDeviceCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
-                                                <Separator />
-                                                <MenuItem Header="Copy IPv4 Address" Command="{Binding CopyIpCommand}" />
-                                                <MenuItem Header="Copy MAC Address" Command="{Binding CopyMacCommand}" />
-                                            </ContextMenu>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </DataGrid.RowStyle>
-                            <DataGrid.Columns>
-                                <!-- Interactive Status Badge (Click to toggle BYPASSED <-> MONITORED) -->
-                                <DataGridTemplateColumn Header="State" Width="90" IsReadOnly="True">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <Button Command="{Binding ToggleMonitoredCommand}"
-                                                    Cursor="Hand"
-                                                    ToolTip="Click to toggle device between MONITORED (redirected) and BYPASSED (direct to router)"
-                                                    HorizontalAlignment="Left"
-                                                    Padding="0"
-                                                    BorderThickness="0"
-                                                    Background="Transparent">
-                                                <Button.Template>
-                                                    <ControlTemplate TargetType="Button">
-                                                        <Border x:Name="BadgeBorder"
-                                                                Background="#141E2E"
-                                                                BorderBrush="#293B54"
-                                                                BorderThickness="1"
-                                                                CornerRadius="2.5"
-                                                                Padding="6,2.5">
-                                                            <TextBlock Text="{Binding StatusBadgeText}"
-                                                                       FontFamily="{StaticResource MonoFont}"
-                                                                       FontSize="9.5"
-                                                                       FontWeight="Bold"
-                                                                       Foreground="{Binding StatusColorHex}" />
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsMouseOver" Value="True">
-                                                                <Setter TargetName="BadgeBorder" Property="Background" Value="#1E2D44" />
-                                                                <Setter TargetName="BadgeBorder" Property="BorderBrush" Value="#38BDF8" />
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Button.Template>
-                                            </Button>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-
-                                <!-- Device Name & Vendor -->
-                                <DataGridTemplateColumn Header="Device &amp; Manufacturer" Width="1.45*" MinWidth="145" IsReadOnly="True">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <StackPanel>
-                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" />
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Text="{Binding RoleBadgeText}" FontSize="9.5" Foreground="{StaticResource AccentEmeraldBrush}" FontWeight="Bold" />
-                                                    <TextBlock Text=" · " FontSize="9.5" Foreground="{StaticResource TextMutedBrush}" />
-                                                    <TextBlock Text="{Binding Vendor}" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" />
-                                                </StackPanel>
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-
-                                <!-- IPv4 & MAC -->
-                                <DataGridTemplateColumn Header="IPv4 / MAC" Width="134" IsReadOnly="True">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <StackPanel>
-                                                <TextBlock Text="{Binding IpAddressText}" FontFamily="{StaticResource MonoFont}" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" />
-                                                <TextBlock Text="{Binding MacAddressText}" FontFamily="{StaticResource MonoFont}" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" />
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-
-                                <!-- Friendly Download Speed + Visual Bar + % of Cap -->
-                                <DataGridTemplateColumn Header="Download Rate" Width="1.15*" MinWidth="122" IsReadOnly="True">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <StackPanel Margin="2,0">
-                                                <Grid>
-                                                    <TextBlock Text="{Binding DownloadSpeedText}" FontFamily="{StaticResource MonoFont}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" />
-                                                    <TextBlock Text="{Binding DownloadCapStatusText}" FontSize="9.5" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Right" VerticalAlignment="Bottom" />
-                                                </Grid>
-                                                <ProgressBar Value="{Binding DownloadBarRatio, Mode=OneWay}"
-                                                             Minimum="0" Maximum="1"
-                                                             Height="3.5"
-                                                             Margin="0,3,0,0"
-                                                             Foreground="{StaticResource AccentSkyBrush}" />
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-
-                                <!-- Friendly Upload Speed + Visual Bar + % of Cap -->
-                                <DataGridTemplateColumn Header="Upload Rate" Width="1.15*" MinWidth="122" IsReadOnly="True">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <StackPanel Margin="2,0">
-                                                <Grid>
-                                                    <TextBlock Text="{Binding UploadSpeedText}" FontFamily="{StaticResource MonoFont}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentVioletBrush}" />
-                                                    <TextBlock Text="{Binding UploadCapStatusText}" FontSize="9.5" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Right" VerticalAlignment="Bottom" />
-                                                </Grid>
-                                                <ProgressBar Value="{Binding UploadBarRatio, Mode=OneWay}"
-                                                             Minimum="0" Maximum="1"
-                                                             Height="3.5"
-                                                             Margin="0,3,0,0"
-                                                             Foreground="{StaticResource AccentVioletBrush}" />
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-
-                                <!-- Per-Row 30s Sparkline -->
-                                <DataGridTemplateColumn Header="30s Trend" Width="74" IsReadOnly="True">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <controls:SparklineControl PrimarySeries="{Binding SparklineSeries}" Height="24" Margin="1,0" />
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-
-                                <!-- Inline Editable Download Cap (KB/s) -->
-                                <DataGridTemplateColumn Header="Down Cap" Width="82">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBox Text="{Binding DownloadCapKBps, UpdateSourceTrigger=PropertyChanged}"
-                                                     IsEnabled="{Binding CanThrottle}"
-                                                     Style="{StaticResource DarkTextBoxStyle}"
-                                                     FontFamily="{StaticResource MonoFont}"
-                                                     FontSize="11.5"
-                                                     Padding="5,2"
-                                                     TextAlignment="Right"
-                                                     ToolTip="Download cap in KB/s (0 = Unlimited)" />
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-
-                                <!-- Inline Editable Upload Cap (KB/s) -->
-                                <DataGridTemplateColumn Header="Up Cap" Width="78">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBox Text="{Binding UploadCapKBps, UpdateSourceTrigger=PropertyChanged}"
-                                                     IsEnabled="{Binding CanThrottle}"
-                                                     Style="{StaticResource DarkTextBoxStyle}"
-                                                     FontFamily="{StaticResource MonoFont}"
-                                                     FontSize="11.5"
-                                                     Padding="5,2"
-                                                     TextAlignment="Right"
-                                                     ToolTip="Upload cap in KB/s (0 = Unlimited)" />
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-
-                                <!-- 7-Day & 30-Day Friendly Usage Column -->
-                                <DataGridTemplateColumn Header="7d / 30d Usage" Width="106" IsReadOnly="True">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <StackPanel>
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Text="7d: " FontSize="10" Foreground="{StaticResource TextMutedBrush}" />
-                                                    <TextBlock Text="{Binding WeekUsageText}" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" />
-                                                </StackPanel>
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Text="30d: " FontSize="9.5" Foreground="{StaticResource TextMutedBrush}" />
-                                                    <TextBlock Text="{Binding MonthUsageText}" FontFamily="{StaticResource MonoFont}" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" />
-                                                </StackPanel>
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-
-                                <!-- Ping Latency -->
-                                <DataGridTextColumn Header="Ping"
-                                                    Binding="{Binding PingLatencyText}"
-                                                    Width="54"
-                                                    FontFamily="{StaticResource MonoFont}"
-                                                    FontSize="11"
-                                                    IsReadOnly="True" />
-
-                                <!-- Block Checkbox -->
-                                <DataGridTemplateColumn Header="Block" Width="46">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <CheckBox IsChecked="{Binding IsBlocked, UpdateSourceTrigger=PropertyChanged}"
-                                                      IsEnabled="{Binding CanThrottle}"
-                                                      ToolTip="Kill-Switch: Drop all packets for this device"
-                                                      HorizontalAlignment="Center" />
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-
-                                <!-- Monitor / Bypass Checkbox -->
-                                <DataGridTemplateColumn Header="Monitor" Width="56">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <CheckBox IsChecked="{Binding IsSpoofed, UpdateSourceTrigger=PropertyChanged}"
-                                                      IsEnabled="{Binding CanThrottle}"
-                                                      ToolTip="Checked = MONITORED (traffic redirected through FishyNet). Unchecked = BYPASSED (direct to router)."
-                                                      HorizontalAlignment="Center" />
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                            </DataGrid.Columns>
-                        </DataGrid>
-
-                        <!-- VIEW 2: BENTO MATRIX (Frosted Glass Cards with Dual-Ring Gauges & Sparklines) -->
-                        <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                      HorizontalScrollBarVisibility="Disabled"
-                                      Visibility="{Binding IsBentoView, Converter={StaticResource BoolToVis}}">
-                            <ItemsControl ItemsSource="{Binding FilteredDevices}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel Orientation="Horizontal" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Width="335"
-                                                Background="{StaticResource GlassCardBrush}"
-                                                BorderBrush="{StaticResource BorderSubtleBrush}"
-                                                BorderThickness="1"
-                                                CornerRadius="4"
-                                                Padding="12,10"
-                                                Margin="0,0,10,10">
-                                            <Grid>
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="Auto" />
-                                                    <RowDefinition Height="Auto" />
-                                                    <RowDefinition Height="Auto" />
-                                                    <RowDefinition Height="Auto" />
-                                                </Grid.RowDefinitions>
-
-                                                <!-- Header -->
-                                                <Grid Grid.Row="0" Margin="0,0,0,8">
-                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                        <Border Background="#121C2B" BorderBrush="#25354C" BorderThickness="1" CornerRadius="3" Width="30" Height="30" Margin="0,0,8,0">
-                                                            <TextBlock Text="{Binding CategoryIconGlyph}" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                        </Border>
-                                                        <StackPanel VerticalAlignment="Center">
-                                                            <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" FontSize="12.5" Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" MaxWidth="175" />
-                                                            <StackPanel Orientation="Horizontal">
-                                                                <TextBlock Text="{Binding IpAddressText}" FontFamily="{StaticResource MonoFont}" FontSize="10.5" Foreground="{StaticResource AccentSkyBrush}" />
-                                                                <TextBlock Text=" · " FontSize="10" Foreground="{StaticResource TextMutedBrush}" />
-                                                                <TextBlock Text="{Binding Vendor}" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" MaxWidth="100" />
-                                                            </StackPanel>
-                                                        </StackPanel>
-                                                    </StackPanel>
-
-                                                    <!-- State Badge Button (Click to toggle) -->
-                                                    <Button Command="{Binding ToggleMonitoredCommand}"
-                                                            HorizontalAlignment="Right"
-                                                            VerticalAlignment="Top"
-                                                            Cursor="Hand"
-                                                            Padding="0"
-                                                            BorderThickness="0"
-                                                            Background="Transparent">
-                                                        <Button.Template>
-                                                            <ControlTemplate TargetType="Button">
-                                                                <Border Background="#141E2E" BorderBrush="#293B54" BorderThickness="1" CornerRadius="2.5" Padding="6,2.5">
-                                                                    <TextBlock Text="{Binding StatusBadgeText}" FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{Binding StatusColorHex}" />
-                                                                </Border>
-                                                            </ControlTemplate>
-                                                        </Button.Template>
-                                                    </Button>
-                                                </Grid>
-
-                                                <!-- Body: Dual Ring Gauge & Rates & Sparkline -->
-                                                <Grid Grid.Row="1" Margin="0,0,0,8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="68" />
-                                                        <ColumnDefinition Width="10" />
-                                                        <ColumnDefinition Width="*" />
-                                                    </Grid.ColumnDefinitions>
-
-                                                    <controls:DualRingGaugeControl Grid.Column="0"
-                                                                                   Width="68" Height="68"
-                                                                                   DownloadRatio="{Binding DownloadBarRatio}"
-                                                                                   UploadRatio="{Binding UploadBarRatio}"
-                                                                                   CenterGlyph="{Binding CategoryIconGlyph}" />
-
-                                                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                                                        <Grid Margin="0,0,0,3">
-                                                            <StackPanel Orientation="Horizontal">
-                                                                <TextBlock Text="▼ " FontSize="10" Foreground="{StaticResource AccentSkyBrush}" FontWeight="Bold" />
-                                                                <TextBlock Text="{Binding DownloadSpeedText}" FontFamily="{StaticResource MonoFont}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" />
-                                                            </StackPanel>
-                                                            <TextBlock Text="{Binding DownloadCapStatusText}" FontSize="9.5" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Right" />
-                                                        </Grid>
-                                                        <Grid Margin="0,0,0,5">
-                                                            <StackPanel Orientation="Horizontal">
-                                                                <TextBlock Text="▲ " FontSize="10" Foreground="{StaticResource AccentVioletBrush}" FontWeight="Bold" />
-                                                                <TextBlock Text="{Binding UploadSpeedText}" FontFamily="{StaticResource MonoFont}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentVioletBrush}" />
-                                                            </StackPanel>
-                                                            <TextBlock Text="{Binding UploadCapStatusText}" FontSize="9.5" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Right" />
-                                                        </Grid>
-                                                        <controls:SparklineControl PrimarySeries="{Binding SparklineSeries}" Height="20" />
-                                                    </StackPanel>
-                                                </Grid>
-
-                                                <!-- Slider Cap Control -->
-                                                <Border Grid.Row="2" Background="#0C121D" BorderBrush="#1E2C3E" BorderThickness="1" CornerRadius="3" Padding="8,6" Margin="0,0,0,8">
-                                                    <StackPanel>
-                                                        <Grid Margin="0,0,0,2">
-                                                            <TextBlock Text="DOWNLOAD CAP LIMIT" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" />
-                                                            <TextBlock Text="{Binding DownloadCapStatusText}" FontFamily="{StaticResource MonoFont}" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" HorizontalAlignment="Right" />
-                                                        </Grid>
-                                                        <Slider Value="{Binding DownloadCapSliderValue, Mode=TwoWay}"
-                                                                Minimum="0" Maximum="10000"
-                                                                SmallChange="64" LargeChange="512"
-                                                                IsEnabled="{Binding CanThrottle}"
-                                                                Height="20" Margin="0,2,0,0" />
-                                                    </StackPanel>
+                <!-- UPPER: VIRTUALIZED HIGH-DENSITY MASTER DATAGRID -->
+                <DataGrid Grid.Row="0"
+                          ItemsSource="{Binding FilteredDevices}"
+                          SelectedItem="{Binding SelectedDevice}"
+                          AutoGenerateColumns="False"
+                          CanUserSortColumns="True"
+                          EnableRowVirtualization="True"
+                          VirtualizingPanel.IsVirtualizing="True"
+                          VirtualizingPanel.VirtualizationMode="Recycling"
+                          ScrollViewer.CanContentScroll="True"
+                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                          RowHeight="28"
+                          GridLinesVisibility="All">
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                            <Setter Property="ContextMenu">
+                                <Setter.Value>
+                                    <ContextMenu>
+                                        <MenuItem Header="Toggle Monitored / Bypassed State" Command="{Binding ToggleMonitoredCommand}" FontWeight="Bold" />
+                                        <MenuItem Header="Set Monitored (Redirect via Npcap)" Command="{Binding MonitorDeviceCommand}" />
+                                        <MenuItem Header="Set Bypassed (Direct to Gateway)" Command="{Binding BypassDeviceCommand}" />
+                                        <Separator />
+                                        <MenuItem Header="Clear Caps &amp; Restore Full Speed" Command="{Binding ClearCapsCommand}" />
+                                        <MenuItem Header="Send Wake-on-LAN (WoL) Packet" Command="{Binding DataContext.WakeSelectedDeviceCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+                                        <Separator />
+                                        <MenuItem Header="Copy IPv4 Address" Command="{Binding CopyIpCommand}" />
+                                        <MenuItem Header="Copy MAC Address" Command="{Binding CopyMacCommand}" />
+                                    </ContextMenu>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </DataGrid.RowStyle>
+                    <DataGrid.Columns>
+                        <!-- Interactive Status Button -->
+                        <DataGridTemplateColumn Header="STATE" Width="82" IsReadOnly="True">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Command="{Binding ToggleMonitoredCommand}"
+                                            Cursor="Hand"
+                                            ToolTip="Click to toggle between MONITORED (redirected) and BYPASSED (direct to gateway)"
+                                            HorizontalAlignment="Left"
+                                            VerticalAlignment="Center"
+                                            Padding="0"
+                                            BorderThickness="0"
+                                            Background="Transparent">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="#141E2D"
+                                                        BorderBrush="#25354C"
+                                                        BorderThickness="1"
+                                                        Padding="4,1">
+                                                    <TextBlock Text="{Binding StatusBadgeText}"
+                                                               FontFamily="{StaticResource MonoFont}"
+                                                               FontSize="9"
+                                                               FontWeight="Bold"
+                                                               Foreground="{Binding StatusColorHex}" />
                                                 </Border>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
 
-                                                <!-- Footer Actions: Block, Monitored, Inspect -->
-                                                <Grid Grid.Row="3">
-                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                        <CheckBox Content="Block"
-                                                                  IsChecked="{Binding IsBlocked, UpdateSourceTrigger=PropertyChanged}"
-                                                                  IsEnabled="{Binding CanThrottle}"
-                                                                  Foreground="{StaticResource AccentCrimsonBrush}"
-                                                                  FontSize="10.5"
-                                                                  VerticalAlignment="Center"
-                                                                  Margin="0,0,8,0" />
-
-                                                        <CheckBox Content="Monitor"
-                                                                  IsChecked="{Binding IsSpoofed, UpdateSourceTrigger=PropertyChanged}"
-                                                                  IsEnabled="{Binding CanThrottle}"
-                                                                  Foreground="{StaticResource TextSecondaryBrush}"
-                                                                  FontSize="10.5"
-                                                                  VerticalAlignment="Center" />
-                                                    </StackPanel>
-
-                                                    <Button Content="Inspect →"
-                                                            Click="OnInspectDeviceClicked"
-                                                            Style="{StaticResource SecondaryButtonStyle}"
-                                                            Padding="7,2"
-                                                            FontSize="10.5"
-                                                            HorizontalAlignment="Right"
-                                                            ToolTip="Open in slide-over inspector drawer" />
-                                                </Grid>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </ScrollViewer>
-
-                        <!-- VIEW 3: RADAR TOPOLOGY (Hardware-Accelerated Node Graph + Floating Glass HUD) -->
-                        <Grid Visibility="{Binding IsTopologyView, Converter={StaticResource BoolToVis}}">
-                            <controls:NetworkTopologyControl Devices="{Binding FilteredDevices}"
-                                                            SelectedDevice="{Binding SelectedDevice, Mode=TwoWay}" />
-
-                            <!-- Floating Glass HUD Overlay -->
-                            <Border HorizontalAlignment="Right"
-                                    VerticalAlignment="Top"
-                                    Width="300"
-                                    Margin="0,16,16,0"
-                                    Background="#E615171F"
-                                    BorderBrush="{StaticResource BorderSubtleBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="4"
-                                    Padding="12,10"
-                                    Visibility="{Binding HasSelectedDevice, Converter={StaticResource BoolToVis}}">
-                                <Border.Effect>
-                                    <DropShadowEffect BlurRadius="16" ShadowDepth="3" Opacity="0.5" Color="#000000" />
-                                </Border.Effect>
-                                <StackPanel DataContext="{Binding SelectedDevice}">
-                                    <Grid Margin="0,0,0,6">
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding CategoryIconGlyph}" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
-                                            <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" FontSize="12.5" Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" MaxWidth="190" />
-                                        </StackPanel>
-                                        <Button Content="✕"
-                                                Click="OnDismissTopologyHudClicked"
-                                                Style="{StaticResource SecondaryButtonStyle}"
-                                                Padding="5,1"
-                                                FontSize="10"
-                                                HorizontalAlignment="Right" />
-                                    </Grid>
-
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                        <TextBlock Text="{Binding IpAddressText}" FontFamily="{StaticResource MonoFont}" FontSize="11" Foreground="{StaticResource AccentSkyBrush}" FontWeight="SemiBold" />
-                                        <TextBlock Text=" · " Foreground="{StaticResource TextMutedBrush}" />
-                                        <TextBlock Text="{Binding MacAddressText}" FontFamily="{StaticResource MonoFont}" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                        <!-- Host & OUI Vendor -->
+                        <DataGridTemplateColumn Header="HOST / OUI VENDOR" Width="1.4*" MinWidth="140" IsReadOnly="True">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" MaxWidth="150" />
+                                        <TextBlock Text=" · " FontSize="9" Foreground="{StaticResource TextMutedBrush}" />
+                                        <TextBlock Text="{Binding Vendor}" FontSize="9.5" Foreground="{StaticResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" MaxWidth="110" />
                                     </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
 
-                                    <Grid Margin="0,0,0,6">
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="Down: " FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" />
-                                            <TextBlock Text="{Binding DownloadSpeedText}" FontFamily="{StaticResource MonoFont}" FontSize="11.5" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" />
-                                        </StackPanel>
-                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                            <TextBlock Text="Up: " FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" />
-                                            <TextBlock Text="{Binding UploadSpeedText}" FontFamily="{StaticResource MonoFont}" FontSize="11.5" FontWeight="Bold" Foreground="{StaticResource AccentVioletBrush}" />
-                                        </StackPanel>
-                                    </Grid>
+                        <!-- IPv4 / MAC -->
+                        <DataGridTemplateColumn Header="IPV4 / MAC" Width="138" IsReadOnly="True">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding IpAddressText}" FontFamily="{StaticResource MonoFont}" FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
+                                        <TextBlock Text="{Binding MacAddressText}" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextMutedBrush}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
 
-                                    <Grid Margin="0,0,0,8">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="6" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0">
-                                            <TextBlock Text="Down Cap (KB/s)" FontSize="9.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,2" />
-                                            <TextBox Text="{Binding DownloadCapKBps, UpdateSourceTrigger=PropertyChanged}"
-                                                     IsEnabled="{Binding CanThrottle}"
-                                                     Style="{StaticResource DarkTextBoxStyle}"
-                                                     FontFamily="{StaticResource MonoFont}"
-                                                     FontSize="11"
-                                                     Padding="4,2" />
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="2">
-                                            <TextBlock Text="Up Cap (KB/s)" FontSize="9.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,2" />
-                                            <TextBox Text="{Binding UploadCapKBps, UpdateSourceTrigger=PropertyChanged}"
-                                                     IsEnabled="{Binding CanThrottle}"
-                                                     Style="{StaticResource DarkTextBoxStyle}"
-                                                     FontFamily="{StaticResource MonoFont}"
-                                                     FontSize="11"
-                                                     Padding="4,2" />
-                                        </StackPanel>
-                                    </Grid>
+                        <!-- RX Speed + Bar -->
+                        <DataGridTemplateColumn Header="RX RATE" Width="1.1*" MinWidth="110" IsReadOnly="True">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel VerticalAlignment="Center" Margin="2,0">
+                                        <Grid>
+                                            <TextBlock Text="{Binding DownloadSpeedText}" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" />
+                                            <TextBlock Text="{Binding DownloadCapStatusText}" FontFamily="{StaticResource MonoFont}" FontSize="8.5" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Right" VerticalAlignment="Bottom" />
+                                        </Grid>
+                                        <ProgressBar Value="{Binding DownloadBarRatio, Mode=OneWay}"
+                                                     Minimum="0" Maximum="1"
+                                                     Height="2.5"
+                                                     Margin="0,2,0,0"
+                                                     Foreground="{StaticResource AccentSkyBrush}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
 
-                                    <Grid Margin="0,0,0,4">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="6" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <Button Grid.Column="0"
-                                                Content="Full Speed"
-                                                Command="{Binding ClearCapsCommand}"
-                                                Style="{StaticResource SecondaryButtonStyle}"
-                                                Padding="6,3"
-                                                FontSize="10.5"
-                                                ToolTip="Clear caps and restore full speed" />
-                                        <Button Grid.Column="2"
-                                                Content="Toggle State"
-                                                Command="{Binding ToggleMonitoredCommand}"
-                                                Style="{StaticResource SecondaryButtonStyle}"
-                                                Padding="6,3"
-                                                FontSize="10.5" />
-                                    </Grid>
-                                    <CheckBox Content="Kill-Switch (Drop All Traffic)"
-                                              IsChecked="{Binding IsBlocked, UpdateSourceTrigger=PropertyChanged}"
+                        <!-- TX Speed + Bar -->
+                        <DataGridTemplateColumn Header="TX RATE" Width="1.1*" MinWidth="110" IsReadOnly="True">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel VerticalAlignment="Center" Margin="2,0">
+                                        <Grid>
+                                            <TextBlock Text="{Binding UploadSpeedText}" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource AccentVioletBrush}" />
+                                            <TextBlock Text="{Binding UploadCapStatusText}" FontFamily="{StaticResource MonoFont}" FontSize="8.5" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Right" VerticalAlignment="Bottom" />
+                                        </Grid>
+                                        <ProgressBar Value="{Binding UploadBarRatio, Mode=OneWay}"
+                                                     Minimum="0" Maximum="1"
+                                                     Height="2.5"
+                                                     Margin="0,2,0,0"
+                                                     Foreground="{StaticResource AccentVioletBrush}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- 30s Sparkline Trend -->
+                        <DataGridTemplateColumn Header="30s TREND" Width="68" IsReadOnly="True">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <controls:SparklineControl PrimarySeries="{Binding SparklineSeries}" Height="18" Margin="1,0" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- Inline Download Cap (KB/s) -->
+                        <DataGridTemplateColumn Header="RX CAP" Width="74">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBox Text="{Binding DownloadCapKBps, UpdateSourceTrigger=PropertyChanged}"
+                                             IsEnabled="{Binding CanThrottle}"
+                                             Style="{StaticResource DarkTextBoxStyle}"
+                                             FontFamily="{StaticResource MonoFont}"
+                                             FontSize="10"
+                                             Padding="3,1"
+                                             TextAlignment="Right"
+                                             ToolTip="Download cap in KB/s (0 = Unlimited)" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- Inline Upload Cap (KB/s) -->
+                        <DataGridTemplateColumn Header="TX CAP" Width="74">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBox Text="{Binding UploadCapKBps, UpdateSourceTrigger=PropertyChanged}"
+                                             IsEnabled="{Binding CanThrottle}"
+                                             Style="{StaticResource DarkTextBoxStyle}"
+                                             FontFamily="{StaticResource MonoFont}"
+                                             FontSize="10"
+                                             Padding="3,1"
+                                             TextAlignment="Right"
+                                             ToolTip="Upload cap in KB/s (0 = Unlimited)" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- 7D / 30D Usage -->
+                        <DataGridTemplateColumn Header="USAGE" Width="96" IsReadOnly="True">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding WeekUsageText, StringFormat='7D: {0}'}" FontFamily="{StaticResource MonoFont}" FontSize="9.5" Foreground="{StaticResource TextSecondaryBrush}" />
+                                        <TextBlock Text="{Binding MonthUsageText, StringFormat='30D: {0}'}" FontFamily="{StaticResource MonoFont}" FontSize="8.5" Foreground="{StaticResource TextMutedBrush}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- Ping Latency -->
+                        <DataGridTextColumn Header="PING"
+                                            Binding="{Binding PingLatencyText}"
+                                            Width="52"
+                                            FontFamily="{StaticResource MonoFont}"
+                                            FontSize="10"
+                                            IsReadOnly="True" />
+
+                        <!-- Kill-Switch Block -->
+                        <DataGridTemplateColumn Header="BLOCK" Width="48">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding IsBlocked, UpdateSourceTrigger=PropertyChanged}"
                                               IsEnabled="{Binding CanThrottle}"
-                                              Foreground="{StaticResource AccentCrimsonBrush}"
-                                              FontSize="10.5"
-                                              Margin="0,4,0,0" />
-                                </StackPanel>
-                            </Border>
-                        </Grid>
-                    </Grid>
-                </Grid>
-            </TabItem>
+                                              ToolTip="Kill-Switch: Drop all packets for this host"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
 
-                <!-- TAB 2: HISTORICAL USAGE (TODAY / PAST WEEK / PAST MONTH / ALL-TIME) -->
-                <TabItem Header="Usage History (Week / Month)">
-                    <Grid Margin="0,8,0,0">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="215" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
+                        <!-- Monitor Redirection -->
+                        <DataGridTemplateColumn Header="MON" Width="48">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding IsSpoofed, UpdateSourceTrigger=PropertyChanged}"
+                                              IsEnabled="{Binding CanThrottle}"
+                                              ToolTip="Checked = Monitored (Redirected via Npcap). Unchecked = Bypassed (Direct to gateway)."
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
 
-                        <!-- Range Selector & Export Controls -->
-                        <Border Grid.Row="0" Background="{StaticResource SurfaceBgBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="3" Padding="12,8" Margin="0,0,0,8">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="20" />
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
+                <!-- 1px Hardware GridSplitter -->
+                <GridSplitter Grid.Row="1"
+                              Height="4"
+                              HorizontalAlignment="Stretch"
+                              VerticalAlignment="Center"
+                              Background="{StaticResource BorderSubtleBrush}"
+                              ResizeDirection="Rows"
+                              ShowsPreview="False" />
 
-                                <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                    <TextBlock Text="Time Window:" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                    <Button Content="Today (24h)" Command="{Binding SelectHistoryRangeCommand}" CommandParameter="Today" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,5,0" />
-                                    <Button Content="Past 7 Days (Week)" Command="{Binding SelectHistoryRangeCommand}" CommandParameter="Past7Days" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,5,0" />
-                                    <Button Content="Past 30 Days (Month)" Command="{Binding SelectHistoryRangeCommand}" CommandParameter="Past30Days" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,5,0" />
-                                    <Button Content="All-Time" Command="{Binding SelectHistoryRangeCommand}" CommandParameter="AllTime" Style="{StaticResource SecondaryButtonStyle}" />
-                                </StackPanel>
+                <!-- LOWER: COLLAPSIBLE BOTTOM INSTRUMENT DOCK (TABBED HARDWARE PANELS) -->
+                <Border Grid.Row="2"
+                        Background="{StaticResource SurfaceBgBrush}"
+                        BorderBrush="{StaticResource BorderSubtleBrush}"
+                        BorderThickness="0,1,0,0">
+                    <TabControl SelectedIndex="{Binding ActiveWorkspaceTab}">
 
-                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="Downloaded: " FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" />
-                                    <TextBlock Text="{Binding HistoryTotalDownloadText}" FontFamily="{StaticResource MonoFont}" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" Margin="0,0,12,0" />
-                                    <TextBlock Text="Uploaded: " FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" />
-                                    <TextBlock Text="{Binding HistoryTotalUploadText}" FontFamily="{StaticResource MonoFont}" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource AccentVioletBrush}" Margin="0,0,12,0" />
-                                    <TextBlock Text="Total: " FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" />
-                                    <TextBlock Text="{Binding HistoryGrandTotalText}" FontFamily="{StaticResource MonoFont}" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" />
-                                </StackPanel>
-
-                                <StackPanel Grid.Column="4" Orientation="Horizontal">
-                                    <Button Content="Export CSV Report" Command="{Binding ExportHistoryCsvCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,6,0" />
-                                    <Button Content="Reset History" Command="{Binding ClearHistoryCommand}" Style="{StaticResource DangerButtonStyle}" />
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-
-                        <!-- Daily Stacked Usage Bar Chart -->
-                        <Border Grid.Row="1" Background="{StaticResource SurfaceBgBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="3" Padding="14,10" Margin="0,0,0,8">
-                            <Grid>
+                        <!-- TAB 0: LIVE DNS SINKHOLE -->
+                        <TabItem Header="LIVE DNS SINKHOLE">
+                            <Grid Margin="6,4">
                                 <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="24" />
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
-                                <Grid Grid.Row="0" Margin="0,0,0,6">
-                                    <TextBlock Text="{Binding SelectedHistoryRangeTitle}" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" />
+
+                                <!-- Strip Controls -->
+                                <Grid Grid.Row="0" Margin="0,0,0,3">
+                                    <TextBlock Text="LIVE PER-DEVICE DNS AUDIT STREAM" FontFamily="{StaticResource MonoFont}" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" VerticalAlignment="Center" />
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                        <Border Width="9" Height="9" CornerRadius="1.5" Background="{StaticResource AccentSkyBrush}" Margin="0,0,5,0" />
-                                        <TextBlock Text="Download Volume" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,14,0" />
-                                        <Border Width="9" Height="9" CornerRadius="1.5" Background="{StaticResource AccentVioletBrush}" Margin="0,0,5,0" />
-                                        <TextBlock Text="Upload Volume (Hover bars for daily totals)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" />
+                                        <Button Content="BLOCK DOMAIN"
+                                                Command="{Binding BlockSelectedDnsDomainCommand}"
+                                                Style="{StaticResource DangerButtonStyle}"
+                                                Height="20"
+                                                Padding="6,1"
+                                                FontSize="9"
+                                                FontFamily="{StaticResource MonoFont}"
+                                                Margin="0,0,4,0" />
+                                        <Button Content="FLUSH AUDIT"
+                                                Command="{Binding ClearDnsLogsCommand}"
+                                                Style="{StaticResource SecondaryButtonStyle}"
+                                                Height="20"
+                                                Padding="6,1"
+                                                FontSize="9"
+                                                FontFamily="{StaticResource MonoFont}" />
                                     </StackPanel>
                                 </Grid>
-                                <controls:UsageBarChartControl Grid.Row="1" Series="{Binding SelectedHistoryDeviceSeries}" />
+
+                                <!-- DNS DataGrid -->
+                                <DataGrid Grid.Row="1"
+                                          ItemsSource="{Binding DnsQueryLogs}"
+                                          SelectedItem="{Binding SelectedDnsRecord}"
+                                          AutoGenerateColumns="False"
+                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                          IsReadOnly="True"
+                                          RowHeight="24">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="TIME (UTC)" Binding="{Binding TimestampUtc, StringFormat={}{0:HH:mm:ss}}" Width="80" FontFamily="{StaticResource MonoFont}" FontSize="9.5" />
+                                        <DataGridTextColumn Header="DEVICE" Binding="{Binding DeviceName}" Width="150" FontWeight="SemiBold" FontSize="10" />
+                                        <DataGridTextColumn Header="SOURCE IP" Binding="{Binding DeviceIp}" Width="110" FontFamily="{StaticResource MonoFont}" FontSize="9.5" />
+                                        <DataGridTextColumn Header="QUERIED DOMAIN" Binding="{Binding Domain}" Width="*" FontFamily="{StaticResource MonoFont}" FontSize="10" Foreground="{StaticResource AccentSkyBrush}" />
+                                        <DataGridTextColumn Header="BLOCKED" Binding="{Binding WasBlocked}" Width="70" FontFamily="{StaticResource MonoFont}" FontSize="9.5" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
                             </Grid>
-                        </Border>
+                        </TabItem>
 
-                        <!-- Per-Device Historical Ranking Table -->
-                        <DataGrid Grid.Row="2"
-                                  ItemsSource="{Binding HistoryDeviceSummaries}"
-                                  SelectedItem="{Binding SelectedHistoryDevice}"
-                                  AutoGenerateColumns="False"
-                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                  IsReadOnly="True">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Device Name" Binding="{Binding DisplayName}" Width="1.4*" FontWeight="SemiBold" />
-                                <DataGridTextColumn Header="MAC Address" Binding="{Binding MacAddress}" Width="135" FontFamily="{StaticResource MonoFont}" />
-                                <DataGridTextColumn Header="Last Known IP" Binding="{Binding LastKnownIp}" Width="115" FontFamily="{StaticResource MonoFont}" />
-                                <DataGridTextColumn Header="Manufacturer" Binding="{Binding Vendor}" Width="1.1*" />
-                                <DataGridTextColumn Header="Downloaded" Binding="{Binding DownloadFormatted}" Width="105" FontFamily="{StaticResource MonoFont}" Foreground="{StaticResource AccentSkyBrush}" FontWeight="SemiBold" />
-                                <DataGridTextColumn Header="Uploaded" Binding="{Binding UploadFormatted}" Width="105" FontFamily="{StaticResource MonoFont}" Foreground="{StaticResource AccentVioletBrush}" FontWeight="SemiBold" />
-                                <DataGridTextColumn Header="Total Data" Binding="{Binding TotalFormatted}" Width="115" FontFamily="{StaticResource MonoFont}" Foreground="{StaticResource AccentEmeraldBrush}" FontWeight="Bold" />
-                                <DataGridTemplateColumn Header="Share of LAN Traffic" Width="1.2*">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <StackPanel>
-                                                <TextBlock Text="{Binding ShareFormatted}" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="SemiBold" />
-                                                <ProgressBar Value="{Binding SharePercentage, Mode=OneWay}" Minimum="0" Maximum="100" Height="4" Margin="0,3,0,0" Foreground="{StaticResource AccentEmeraldBrush}" />
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="Peak Speed" Binding="{Binding PeakDownloadFormatted}" Width="105" FontFamily="{StaticResource MonoFont}" />
-                                <DataGridTextColumn Header="Active Days" Binding="{Binding ActiveDays}" Width="82" FontFamily="{StaticResource MonoFont}" />
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </Grid>
-                </TabItem>
-
-                <!-- TAB 3: PROTOCOL & TRAFFIC ANALYTICS -->
-                <TabItem Header="Protocol &amp; Traffic Analytics">
-                    <Grid Margin="0,8,0,0">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="215" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-
-                        <!-- Protocol Breakdown Cards -->
-                        <UniformGrid Grid.Row="0" Columns="4" Margin="0,0,0,8">
-                            <Border Background="{StaticResource GlassCardBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="3" Padding="14,10" Margin="0,0,8,0">
-                                <StackPanel>
-                                    <TextBlock Text="WEB / HTTPS / QUIC (443/80)" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" />
-                                    <TextBlock Text="{Binding ProtoHttpTlsSummary}" FontFamily="{StaticResource MonoFont}" FontSize="16.5" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" Margin="0,4,0,0" />
-                                </StackPanel>
-                            </Border>
-                            <Border Background="{StaticResource GlassCardBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="3" Padding="14,10" Margin="0,0,8,0">
-                                <StackPanel>
-                                    <TextBlock Text="TCP STREAMS" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" />
-                                    <TextBlock Text="{Binding ProtoTcpSummary}" FontFamily="{StaticResource MonoFont}" FontSize="16.5" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" Margin="0,4,0,0" />
-                                </StackPanel>
-                            </Border>
-                            <Border Background="{StaticResource GlassCardBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="3" Padding="14,10" Margin="0,0,8,0">
-                                <StackPanel>
-                                    <TextBlock Text="UDP / REALTIME / GAMING" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" />
-                                    <TextBlock Text="{Binding ProtoUdpSummary}" FontFamily="{StaticResource MonoFont}" FontSize="16.5" FontWeight="Bold" Foreground="{StaticResource AccentVioletBrush}" Margin="0,4,0,0" />
-                                </StackPanel>
-                            </Border>
-                            <Border Background="{StaticResource GlassCardBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="3" Padding="14,10">
-                                <StackPanel>
-                                    <TextBlock Text="DNS LOOKUPS (UDP 53)" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" />
-                                    <TextBlock Text="{Binding ProtoDnsSummary}" FontFamily="{StaticResource MonoFont}" FontSize="16.5" FontWeight="Bold" Foreground="{StaticResource AccentAmberBrush}" Margin="0,4,0,0" />
-                                </StackPanel>
-                            </Border>
-                        </UniformGrid>
-
-                        <!-- Large 60-Second Area Chart -->
-                        <Border Grid.Row="1" Background="{StaticResource SurfaceBgBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="3" Padding="14,10" Margin="0,0,0,8">
-                            <Grid>
+                        <!-- TAB 1: USAGE HISTORY LEDGER -->
+                        <TabItem Header="USAGE HISTORY LEDGER">
+                            <Grid Margin="6,4">
                                 <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="24" />
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
-                                <TextBlock Grid.Row="0" Text="Real-Time 60-Second LAN Throughput (Download vs Upload)" FontSize="12.5" FontWeight="SemiBold" Margin="0,0,0,8" />
-                                <controls:SparklineControl Grid.Row="1"
-                                                           PrimarySeries="{Binding NetworkDownloadSeries}"
-                                                           SecondarySeries="{Binding NetworkUploadSeries}"
-                                                           ShowGridLines="True" />
+
+                                <!-- Range Selection & Aggregates -->
+                                <Grid Grid.Row="0" Margin="0,0,0,3">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="WINDOW:" FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" Margin="0,0,5,0" />
+                                        <Button Content="TODAY (24H)" Command="{Binding SelectHistoryRangeCommand}" CommandParameter="Today" Style="{StaticResource SecondaryButtonStyle}" Height="20" Padding="5,1" FontSize="9" FontFamily="{StaticResource MonoFont}" Margin="0,0,2,0" />
+                                        <Button Content="PAST 7 DAYS" Command="{Binding SelectHistoryRangeCommand}" CommandParameter="Past7Days" Style="{StaticResource SecondaryButtonStyle}" Height="20" Padding="5,1" FontSize="9" FontFamily="{StaticResource MonoFont}" Margin="0,0,2,0" />
+                                        <Button Content="PAST 30 DAYS" Command="{Binding SelectHistoryRangeCommand}" CommandParameter="Past30Days" Style="{StaticResource SecondaryButtonStyle}" Height="20" Padding="5,1" FontSize="9" FontFamily="{StaticResource MonoFont}" Margin="0,0,2,0" />
+                                        <Button Content="ALL-TIME" Command="{Binding SelectHistoryRangeCommand}" CommandParameter="AllTime" Style="{StaticResource SecondaryButtonStyle}" Height="20" Padding="5,1" FontSize="9" FontFamily="{StaticResource MonoFont}" Margin="0,0,10,0" />
+
+                                        <TextBlock Text="TOTAL: " FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding HistoryGrandTotalText}" FontFamily="{StaticResource MonoFont}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                        <TextBlock Text="RX: " FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding HistoryTotalDownloadText}" FontFamily="{StaticResource MonoFont}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                        <TextBlock Text="TX: " FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding HistoryTotalUploadText}" FontFamily="{StaticResource MonoFont}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource AccentVioletBrush}" VerticalAlignment="Center" />
+                                    </StackPanel>
+
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <Button Content="REFRESH" Command="{Binding RefreshHistoryCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="20" Padding="6,1" FontSize="9" FontFamily="{StaticResource MonoFont}" Margin="0,0,4,0" />
+                                        <Button Content="EXPORT CSV" Command="{Binding ExportHistoryCsvCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="20" Padding="6,1" FontSize="9" FontFamily="{StaticResource MonoFont}" Margin="0,0,4,0" />
+                                        <Button Content="PURGE" Command="{Binding ClearHistoryCommand}" Style="{StaticResource DangerButtonStyle}" Height="20" Padding="6,1" FontSize="9" FontFamily="{StaticResource MonoFont}" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- Ledger Master & Bar Chart Split -->
+                                <Grid Grid.Row="1">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="340" />
+                                        <ColumnDefinition Width="6" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Lightweight Daily Chart -->
+                                    <Border Grid.Column="0" Background="#111317" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="6">
+                                        <controls:UsageBarChartControl Series="{Binding HistoryDailySeries}" />
+                                    </Border>
+
+                                    <!-- Historical Device Table -->
+                                    <DataGrid Grid.Column="2"
+                                              ItemsSource="{Binding HistoryDeviceSummaries}"
+                                              AutoGenerateColumns="False"
+                                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                              IsReadOnly="True"
+                                              RowHeight="24">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="HOST" Binding="{Binding DisplayName}" Width="1.3*" FontWeight="SemiBold" FontSize="10" />
+                                            <DataGridTextColumn Header="IPV4" Binding="{Binding IpAddressText}" Width="110" FontFamily="{StaticResource MonoFont}" FontSize="9.5" />
+                                            <DataGridTextColumn Header="MAC" Binding="{Binding MacAddressText}" Width="125" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextMutedBrush}" />
+                                            <DataGridTextColumn Header="TOTAL" Binding="{Binding TotalBytesText}" Width="85" FontFamily="{StaticResource MonoFont}" FontWeight="Bold" FontSize="10" Foreground="{StaticResource TextPrimaryBrush}" />
+                                            <DataGridTextColumn Header="RX" Binding="{Binding DownloadBytesText}" Width="85" FontFamily="{StaticResource MonoFont}" FontSize="9.5" Foreground="{StaticResource AccentSkyBrush}" />
+                                            <DataGridTextColumn Header="TX" Binding="{Binding UploadBytesText}" Width="85" FontFamily="{StaticResource MonoFont}" FontSize="9.5" Foreground="{StaticResource AccentVioletBrush}" />
+                                            <DataGridTextColumn Header="LAN SHARE" Binding="{Binding LanSharePercentageText}" Width="80" FontFamily="{StaticResource MonoFont}" FontSize="9.5" Foreground="{StaticResource AccentAmberBrush}" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Grid>
                             </Grid>
-                        </Border>
+                        </TabItem>
 
-                        <!-- Per-Device Protocol & Session Breakdown -->
-                        <DataGrid Grid.Row="2"
-                                  ItemsSource="{Binding Devices}"
-                                  SelectedItem="{Binding SelectedDevice}"
-                                  AutoGenerateColumns="False"
-                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                  IsReadOnly="True">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Device" Binding="{Binding DisplayName}" Width="1.3*" FontWeight="SemiBold" />
-                                <DataGridTextColumn Header="IP Address" Binding="{Binding IpAddressText}" Width="120" FontFamily="{StaticResource MonoFont}" />
-                                <DataGridTextColumn Header="Session Downloaded" Binding="{Binding SessionDownloadText}" Width="135" FontFamily="{StaticResource MonoFont}" Foreground="{StaticResource AccentSkyBrush}" />
-                                <DataGridTextColumn Header="Session Uploaded" Binding="{Binding SessionUploadText}" Width="135" FontFamily="{StaticResource MonoFont}" Foreground="{StaticResource AccentVioletBrush}" />
-                                <DataGridTextColumn Header="Session Total" Binding="{Binding SessionTotalText}" Width="125" FontFamily="{StaticResource MonoFont}" FontWeight="Bold" />
-                                <DataGridTextColumn Header="Protocol Distribution" Binding="{Binding ProtocolBreakdownText}" Width="2*" FontFamily="{StaticResource MonoFont}" />
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </Grid>
-                </TabItem>
-
-                <!-- TAB 4: DNS INSPECTOR & ARP SECURITY GUARD -->
-                <TabItem Header="DNS Inspector &amp; ARP Guard">
-                    <Grid Margin="0,8,0,0">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="160" />
-                        </Grid.RowDefinitions>
-
-                        <Border Grid.Row="0" Background="{StaticResource SurfaceBgBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="3" Padding="12,8" Margin="0,0,0,8">
-                            <Grid>
-                                <TextBlock Text="Live Per-Device DNS Query Stream (Select a query to block that domain on the requesting device)" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                    <Button Content="Block Selected Domain on Device"
-                                            Command="{Binding BlockSelectedDnsDomainCommand}"
-                                            Style="{StaticResource DangerButtonStyle}"
-                                            Margin="0,0,8,0" />
-                                    <Button Content="Clear Log"
-                                            Command="{Binding ClearDnsLogsCommand}"
-                                            Style="{StaticResource SecondaryButtonStyle}" />
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-
-                        <DataGrid Grid.Row="1"
-                                  ItemsSource="{Binding DnsQueryLogs}"
-                                  SelectedItem="{Binding SelectedDnsRecord}"
-                                  AutoGenerateColumns="False"
-                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                  IsReadOnly="True"
-                                  Margin="0,0,0,8">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Time (UTC)" Binding="{Binding TimestampUtc, StringFormat={}{0:HH:mm:ss}}" Width="95" FontFamily="{StaticResource MonoFont}" />
-                                <DataGridTextColumn Header="Device" Binding="{Binding DeviceName}" Width="190" FontWeight="SemiBold" />
-                                <DataGridTextColumn Header="Source IP" Binding="{Binding DeviceIp}" Width="125" FontFamily="{StaticResource MonoFont}" />
-                                <DataGridTextColumn Header="Queried Domain" Binding="{Binding Domain}" Width="*" FontFamily="{StaticResource MonoFont}" Foreground="{StaticResource AccentSkyBrush}" />
-                                <DataGridTextColumn Header="Blocked" Binding="{Binding WasBlocked}" Width="85" FontFamily="{StaticResource MonoFont}" />
-                            </DataGrid.Columns>
-                        </DataGrid>
-
-                        <Border Grid.Row="2" Background="{StaticResource SurfaceBgBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="3" Padding="12,8">
-                            <Grid>
+                        <!-- TAB 2: ARP SECURITY GUARD -->
+                        <TabItem Header="ARP SECURITY GUARD">
+                            <Grid Margin="6,4">
                                 <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="24" />
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
-                                <TextBlock Grid.Row="0" Text="Passive ARP Spoof / MITM Guard Alerts" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource AccentEmeraldBrush}" Margin="0,0,0,6" />
+
+                                <Grid Grid.Row="0" Margin="0,0,0,3">
+                                    <TextBlock Text="PASSIVE ARP MITM &amp; CACHE POISONING SHIELD" FontFamily="{StaticResource MonoFont}" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding ArpGuardStatusText}" FontFamily="{StaticResource MonoFont}" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </Grid>
+
                                 <DataGrid Grid.Row="1"
                                           ItemsSource="{Binding SecurityAlerts}"
                                           AutoGenerateColumns="False"
                                           ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                           IsReadOnly="True"
-                                          RowHeight="32">
+                                          RowHeight="24">
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Time" Binding="{Binding TimestampUtc, StringFormat={}{0:HH:mm:ss}}" Width="90" FontFamily="{StaticResource MonoFont}" />
-                                        <DataGridTextColumn Header="Target IP" Binding="{Binding TargetIp}" Width="115" FontFamily="{StaticResource MonoFont}" />
-                                        <DataGridTextColumn Header="Expected MAC" Binding="{Binding ExpectedMac}" Width="145" FontFamily="{StaticResource MonoFont}" />
-                                        <DataGridTextColumn Header="Offending MAC" Binding="{Binding OffendingMac}" Width="145" FontFamily="{StaticResource MonoFont}" Foreground="{StaticResource AccentCrimsonBrush}" />
-                                        <DataGridTextColumn Header="Alert Details" Binding="{Binding Description}" Width="*" />
+                                        <DataGridTextColumn Header="TIME" Binding="{Binding TimestampUtc, StringFormat={}{0:HH:mm:ss}}" Width="75" FontFamily="{StaticResource MonoFont}" FontSize="9.5" />
+                                        <DataGridTextColumn Header="TARGET IP" Binding="{Binding TargetIp}" Width="110" FontFamily="{StaticResource MonoFont}" FontSize="9.5" />
+                                        <DataGridTextColumn Header="EXPECTED MAC" Binding="{Binding ExpectedMac}" Width="135" FontFamily="{StaticResource MonoFont}" FontSize="9" />
+                                        <DataGridTextColumn Header="OFFENDING MAC" Binding="{Binding OffendingMac}" Width="135" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource AccentCrimsonBrush}" FontWeight="Bold" />
+                                        <DataGridTextColumn Header="INCIDENT DETAILS" Binding="{Binding Description}" Width="*" FontSize="10" />
                                     </DataGrid.Columns>
                                 </DataGrid>
                             </Grid>
-                        </Border>
-                    </Grid>
-                </TabItem>
+                        </TabItem>
 
-                <!-- TAB 5: TIME-OF-DAY SMART SCHEDULES & AUTO-GAMING -->
-                <TabItem Header="Smart Schedules &amp; Auto-Gaming">
-                    <Grid Margin="0,8,0,0">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
+                        <!-- TAB 3: PROTOCOL ANALYTICS (DPI) -->
+                        <TabItem Header="PROTOCOL ANALYTICS (DPI)">
+                            <Grid Margin="6,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="6" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="6" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="6" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
 
-                        <!-- Header Info Card & Reset Button -->
-                        <Border Grid.Row="0" Background="{StaticResource SurfaceBgBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="3" Padding="14,10" Margin="0,0,0,10">
-                            <Grid>
-                                <StackPanel>
-                                    <TextBlock Text="AUTONOMOUS TIME-OF-DAY SCHEDULES &amp; AUTO-GAMING ENGINE" FontSize="11" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" />
-                                    <TextBlock Text="Automatic network policies that trigger without manual intervention—protect gaming ping during lag spikes or cap heavy devices during streaming hours." FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0" />
-                                </StackPanel>
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                    <Button Content="Reset Built-In Rules"
+                                <!-- HTTP/TLS -->
+                                <Border Grid.Column="0" Background="#111317" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="10,8">
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="HTTP / TLS (80, 443)" FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" />
+                                        <TextBlock Text="{Binding ProtoHttpTlsSummary}" FontFamily="{StaticResource MonoFont}" FontSize="13" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- TCP Flows -->
+                                <Border Grid.Column="2" Background="#111317" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="10,8">
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="TCP FLOWS" FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" />
+                                        <TextBlock Text="{Binding ProtoTcpSummary}" FontFamily="{StaticResource MonoFont}" FontSize="13" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- UDP Datagrams -->
+                                <Border Grid.Column="4" Background="#111317" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="10,8">
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="UDP DATAGRAMS" FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" />
+                                        <TextBlock Text="{Binding ProtoUdpSummary}" FontFamily="{StaticResource MonoFont}" FontSize="13" FontWeight="Bold" Foreground="{StaticResource AccentAmberBrush}" Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- DNS Queries -->
+                                <Border Grid.Column="6" Background="#111317" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="10,8">
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="DNS AUDIT (PORT 53)" FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" />
+                                        <TextBlock Text="{Binding ProtoDnsSummary}" FontFamily="{StaticResource MonoFont}" FontSize="13" FontWeight="Bold" Foreground="{StaticResource AccentVioletBrush}" Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </TabItem>
+
+                        <!-- TAB 4: AUTONOMOUS POLICIES / SCHEDULES -->
+                        <TabItem Header="AUTONOMOUS POLICIES">
+                            <Grid Margin="6,4">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="24" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+
+                                <Grid Grid.Row="0" Margin="0,0,0,3">
+                                    <TextBlock Text="AUTONOMOUS TIME-OF-DAY ENGINE &amp; AUTO-GAMING RULES" FontFamily="{StaticResource MonoFont}" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" VerticalAlignment="Center" />
+                                    <Button Content="RESET RULES"
                                             Command="{Binding ResetSmartRulesCommand}"
                                             Style="{StaticResource SecondaryButtonStyle}"
-                                            Padding="10,4"
-                                            FontSize="11"
-                                            ToolTip="Restore default smart rules (Auto-Gaming Ping Guard, Nighttime Saver, Workday Shield)" />
-                                </StackPanel>
-                            </Grid>
-                        </Border>
+                                            Height="20"
+                                            Padding="8,1"
+                                            FontSize="9"
+                                            FontFamily="{StaticResource MonoFont}"
+                                            HorizontalAlignment="Right" />
+                                </Grid>
 
-                        <!-- Rules ItemsControl List -->
-                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                            <ItemsControl ItemsSource="{Binding SmartRules}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Background="{StaticResource GlassCardBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="4" Padding="14,12" Margin="0,0,0,8">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto" />
-                                                    <ColumnDefinition Width="14" />
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="14" />
-                                                    <ColumnDefinition Width="160" />
-                                                    <ColumnDefinition Width="14" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                </Grid.ColumnDefinitions>
+                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                    <ItemsControl ItemsSource="{Binding SmartRules}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="#111317" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="8,6" Margin="0,0,0,3">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="80" />
+                                                            <ColumnDefinition Width="8" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="8" />
+                                                            <ColumnDefinition Width="160" />
+                                                            <ColumnDefinition Width="8" />
+                                                            <ColumnDefinition Width="80" />
+                                                        </Grid.ColumnDefinitions>
 
-                                                <!-- Rule Type Badge -->
-                                                <Border Grid.Column="0" Background="#141E2D" BorderBrush="#25354C" BorderThickness="1" CornerRadius="3" Padding="8,4" VerticalAlignment="Center">
-                                                    <StackPanel HorizontalAlignment="Center">
-                                                        <TextBlock Text="{Binding RuleType}" FontFamily="{StaticResource MonoFont}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" />
-                                                    </StackPanel>
-                                                </Border>
+                                                        <!-- Type Tag -->
+                                                        <Border Grid.Column="0" Background="#181B21" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="4,2" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding RuleType}" FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" HorizontalAlignment="Center" />
+                                                        </Border>
 
-                                                <!-- Title, Description & Status -->
-                                                <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,8,0" />
-                                                        <Border CornerRadius="2" Padding="5,1">
-                                                            <Border.Style>
-                                                                <Style TargetType="Border">
-                                                                    <Setter Property="Background" Value="#142E28" />
-                                                                    <Setter Property="BorderBrush" Value="#10B981" />
-                                                                    <Setter Property="BorderThickness" Value="1" />
+                                                        <!-- Name & Description -->
+                                                        <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,6,0" />
+                                                                <TextBlock Text="{Binding StatusDescription}" FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource AccentAmberBrush}" VerticalAlignment="Center" />
+                                                            </StackPanel>
+                                                            <TextBlock Text="{Binding Description}" FontSize="9.5" Foreground="{StaticResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" Margin="0,1,0,0" />
+                                                        </StackPanel>
+
+                                                        <!-- Target & Cap -->
+                                                        <StackPanel Grid.Column="4" VerticalAlignment="Center">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="TARGET: " FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextMutedBrush}" />
+                                                                <TextBlock Text="{Binding TargetCategory}" FontSize="9.5" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" />
+                                                            </StackPanel>
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="CAP: " FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextMutedBrush}" />
+                                                                <TextBlock Text="{Binding ThrottleCapKBps, StringFormat={}{0} KB/s}" FontFamily="{StaticResource MonoFont}" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource AccentAmberBrush}" />
+                                                            </StackPanel>
+                                                        </StackPanel>
+
+                                                        <!-- Enable/Disable Action -->
+                                                        <Button Grid.Column="6"
+                                                                Command="{Binding DataContext.ToggleSmartRuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                CommandParameter="{Binding}"
+                                                                Height="20"
+                                                                Padding="6,1"
+                                                                FontSize="9.5"
+                                                                FontFamily="{StaticResource MonoFont}"
+                                                                FontWeight="Bold">
+                                                            <Button.Style>
+                                                                <Style TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
                                                                     <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding IsCurrentlyTriggered}" Value="True">
-                                                                            <Setter Property="Background" Value="#451A03" />
-                                                                            <Setter Property="BorderBrush" Value="#F59E0B" />
+                                                                        <DataTrigger Binding="{Binding IsEnabled}" Value="False">
+                                                                            <Setter Property="Background" Value="#181B21" />
+                                                                            <Setter Property="BorderBrush" Value="{StaticResource BorderSubtleBrush}" />
+                                                                            <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
                                                                         </DataTrigger>
                                                                     </Style.Triggers>
                                                                 </Style>
-                                                            </Border.Style>
-                                                            <TextBlock Text="{Binding StatusDescription}" FontFamily="{StaticResource MonoFont}" FontSize="9.5" FontWeight="Bold">
+                                                            </Button.Style>
+                                                            <TextBlock Text="{Binding IsEnabled}">
                                                                 <TextBlock.Style>
                                                                     <Style TargetType="TextBlock">
-                                                                        <Setter Property="Foreground" Value="{StaticResource AccentEmeraldBrush}" />
+                                                                        <Setter Property="Text" Value="ENABLED" />
                                                                         <Style.Triggers>
-                                                                            <DataTrigger Binding="{Binding IsCurrentlyTriggered}" Value="True">
-                                                                                <Setter Property="Foreground" Value="{StaticResource AccentAmberBrush}" />
+                                                                            <DataTrigger Binding="{Binding IsEnabled}" Value="False">
+                                                                                <Setter Property="Text" Value="DISABLED" />
                                                                             </DataTrigger>
                                                                         </Style.Triggers>
                                                                     </Style>
                                                                 </TextBlock.Style>
                                                             </TextBlock>
-                                                        </Border>
-                                                    </StackPanel>
-                                                    <TextBlock Text="{Binding Description}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
-                                                </StackPanel>
+                                                        </Button>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Grid>
+                        </TabItem>
 
-                                                <!-- Target & Throttle Cap Summary -->
-                                                <StackPanel Grid.Column="4" VerticalAlignment="Center">
-                                                    <TextBlock Text="POLICY ENFORCEMENT" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" />
-                                                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                                                        <TextBlock Text="Target: " FontSize="10.5" Foreground="{StaticResource TextMutedBrush}" />
-                                                        <TextBlock Text="{Binding TargetCategory}" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" />
-                                                    </StackPanel>
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="Rate Cap: " FontSize="10.5" Foreground="{StaticResource TextMutedBrush}" />
-                                                        <TextBlock Text="{Binding ThrottleCapKBps, StringFormat={}{0} KB/s}" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource AccentAmberBrush}" />
-                                                    </StackPanel>
-                                                </StackPanel>
+                    </TabControl>
+                </Border>
+            </Grid>
 
-                                                <!-- Toggle Switch Button -->
-                                                <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Center">
-                                                    <Button Command="{Binding DataContext.ToggleSmartRuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                            CommandParameter="{Binding}"
-                                                            Padding="12,5"
-                                                            FontSize="11"
-                                                            FontWeight="Bold"
-                                                            Cursor="Hand">
-                                                        <Button.Style>
-                                                            <Style TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding IsEnabled}" Value="False">
-                                                                        <Setter Property="Background" Value="#15202E" />
-                                                                        <Setter Property="BorderBrush" Value="#293B54" />
-                                                                        <Setter Property="Foreground" Value="#64748B" />
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </Button.Style>
-                                                        <TextBlock Text="{Binding Path=IsEnabled, Converter={x:Null}, FallbackValue='ACTIVE'}">
-                                                            <TextBlock.Style>
-                                                                <Style TargetType="TextBlock">
-                                                                    <Setter Property="Text" Value="ENABLED" />
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding IsEnabled}" Value="False">
-                                                                            <Setter Property="Text" Value="DISABLED" />
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </TextBlock.Style>
-                                                        </TextBlock>
-                                                    </Button>
-                                                </StackPanel>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </ScrollViewer>
-                    </Grid>
-                </TabItem>
-            </TabControl>
-
-            <!-- Separator -->
-            <Border Grid.Column="1" Width="12" Visibility="{Binding IsInspectorOpen, Converter={StaticResource BoolToVis}}" Background="Transparent" />
-
-            <!-- Right Column: COLLAPSIBLE FROSTED DEVICE INSPECTOR & RULES DRAWER -->
-            <Border Grid.Column="2"
-                    Width="330"
+            <!-- Column 1: Collapsible Right-Side Device Inspector Drawer -->
+            <Border Grid.Column="1"
+                    Width="300"
                     Visibility="{Binding IsInspectorOpen, Converter={StaticResource BoolToVis}}"
-                    Background="{StaticResource SurfaceBgBrush}"
+                    Background="#14171E"
                     BorderBrush="{StaticResource BorderSubtleBrush}"
-                    BorderThickness="1"
-                    CornerRadius="3"
-                    Padding="13,12,7,12">
+                    BorderThickness="1,0,0,0"
+                    Padding="10,8">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel DataContext="{Binding SelectedDevice}" Margin="0,0,6,0">
-                        <Grid Margin="0,0,0,4">
-                            <TextBlock Text="DEVICE INSPECTOR &amp; RULES" FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" VerticalAlignment="Center" />
+                    <StackPanel DataContext="{Binding SelectedDevice}">
+                        <!-- Header -->
+                        <Grid Margin="0,0,0,6">
+                            <TextBlock Text="DEVICE INSPECTOR" FontFamily="{StaticResource MonoFont}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" VerticalAlignment="Center" />
                             <Button Content="✕"
                                     Command="{Binding DataContext.CloseInspectorCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                     Style="{StaticResource SecondaryButtonStyle}"
-                                    Padding="6,2"
-                                    FontSize="10"
-                                    HorizontalAlignment="Right"
-                                    ToolTip="Collapse Inspector Drawer" />
+                                    Height="18"
+                                    Padding="4,0"
+                                    FontSize="9"
+                                    FontFamily="{StaticResource MonoFont}"
+                                    HorizontalAlignment="Right" />
                         </Grid>
-                        <TextBlock Text="{Binding DisplayName, FallbackValue='Select a device'}" FontSize="15.5" FontWeight="Bold" Margin="0,3,0,2" TextTrimming="CharacterEllipsis" />
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                            <TextBlock Text="{Binding IpAddressText}" FontFamily="{StaticResource MonoFont}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource AccentSkyBrush}" />
+
+                        <TextBlock Text="{Binding DisplayName, FallbackValue='No device selected'}" FontSize="13" FontWeight="Bold" TextTrimming="CharacterEllipsis" Margin="0,0,0,2" />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="{Binding IpAddressText}" FontFamily="{StaticResource MonoFont}" FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" />
                             <TextBlock Text=" · " Foreground="{StaticResource TextMutedBrush}" />
-                            <TextBlock Text="{Binding MacAddressText}" FontFamily="{StaticResource MonoFont}" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding MacAddressText}" FontFamily="{StaticResource MonoFont}" FontSize="9.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
                         </StackPanel>
 
-                        <!-- Monitoring State Control (Switch between Bypassed & Monitored) -->
-                        <Border Background="{StaticResource GlassCardBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="3" Padding="10,8" Margin="0,0,0,10">
+                        <!-- Redirection Mode Buttons -->
+                        <Border Background="#111317" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="8,6" Margin="0,0,0,8">
                             <StackPanel>
-                                <Grid Margin="0,0,0,5">
-                                    <TextBlock Text="REDIRECTION &amp; MONITOR MODE" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
-                                    <Border Background="#141E2E" BorderBrush="#293B54" BorderThickness="1" CornerRadius="2.5" Padding="6,2" HorizontalAlignment="Right">
-                                        <TextBlock Text="{Binding StatusBadgeText}" FontFamily="{StaticResource MonoFont}" FontSize="9.5" FontWeight="Bold" Foreground="{Binding StatusColorHex}" />
+                                <Grid Margin="0,0,0,4">
+                                    <TextBlock Text="REDIRECTION MODE" FontFamily="{StaticResource MonoFont}" FontSize="8.5" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+                                    <Border Background="#181B21" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="4,1" HorizontalAlignment="Right">
+                                        <TextBlock Text="{Binding StatusBadgeText}" FontFamily="{StaticResource MonoFont}" FontSize="8.5" FontWeight="Bold" Foreground="{Binding StatusColorHex}" />
                                     </Border>
                                 </Grid>
-                                <TextBlock Text="{Binding MonitorModeDescription}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,8" />
-                                <Grid Margin="0,0,0,7">
+                                <Grid Margin="0,0,0,4">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="6" />
+                                        <ColumnDefinition Width="4" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <Button Grid.Column="0"
-                                            Content="Set Monitored"
-                                            Command="{Binding MonitorDeviceCommand}"
-                                            Style="{StaticResource PrimaryButtonStyle}"
-                                            Padding="8,5"
-                                            FontSize="11"
-                                            ToolTip="Redirect this device's packets through FishyNet to monitor speeds and enforce caps" />
-                                    <Button Grid.Column="2"
-                                            Content="Set Bypassed"
-                                            Command="{Binding BypassDeviceCommand}"
-                                            Style="{StaticResource SecondaryButtonStyle}"
-                                            Padding="8,5"
-                                            FontSize="11"
-                                            ToolTip="Restore direct ARP to the router so this device bypasses FishyNet" />
+                                    <Button Grid.Column="0" Content="MONITOR" Command="{Binding MonitorDeviceCommand}" Style="{StaticResource PrimaryButtonStyle}" Height="20" Padding="4,1" FontSize="9.5" />
+                                    <Button Grid.Column="2" Content="BYPASS" Command="{Binding BypassDeviceCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="20" Padding="4,1" FontSize="9.5" />
                                 </Grid>
-                                <CheckBox Content="Block All Internet Access (Kill-Switch)"
+                                <CheckBox Content="KILL-SWITCH (DROP ALL TRAFFIC)"
                                           IsChecked="{Binding IsBlocked, UpdateSourceTrigger=PropertyChanged}"
                                           IsEnabled="{Binding CanThrottle}"
-                                          Foreground="{StaticResource TextSecondaryBrush}"
+                                          Foreground="{StaticResource AccentCrimsonBrush}"
+                                          FontSize="9.5"
+                                          FontFamily="{StaticResource MonoFont}"
                                           Margin="0,2,0,0" />
                             </StackPanel>
                         </Border>
 
-                        <!-- Custom Nickname & Category -->
-                        <TextBlock Text="Custom Friendly Nickname" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,3" />
-                        <TextBox Text="{Binding CustomNickname, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource DarkTextBoxStyle}"
-                                 Margin="0,0,0,8" />
+                        <!-- Nickname & Category -->
+                        <TextBlock Text="FRIENDLY NICKNAME" FontFamily="{StaticResource MonoFont}" FontSize="8.5" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,2" />
+                        <TextBox Text="{Binding CustomNickname, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource DarkTextBoxStyle}" Height="20" Margin="0,0,0,6" />
 
-                        <TextBlock Text="Device Category" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,3" />
+                        <TextBlock Text="DEVICE CATEGORY" FontFamily="{StaticResource MonoFont}" FontSize="8.5" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,2" />
                         <ComboBox ItemsSource="{Binding DataContext.Categories, RelativeSource={RelativeSource AncestorType=Window}}"
                                   SelectedItem="{Binding Category}"
-                                  Height="28"
-                                  Margin="0,0,0,10" />
+                                  Height="22"
+                                  Margin="0,0,0,8" />
 
-                        <!-- Friendly Usage Summary Box -->
-                        <Border Background="{StaticResource GlassCardBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="3" Padding="10,8" Margin="0,0,0,10">
+                        <!-- Data Consumption Summary -->
+                        <Border Background="#111317" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="8,5" Margin="0,0,0,8">
                             <StackPanel>
-                                <TextBlock Text="RECORDED DATA CONSUMPTION" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,5" />
-                                <Grid Margin="0,2">
-                                    <TextBlock Text="Current Session:" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" />
-                                    <TextBlock Text="{Binding SessionTotalText}" FontFamily="{StaticResource MonoFont}" FontSize="11.5" FontWeight="SemiBold" HorizontalAlignment="Right" />
+                                <TextBlock Text="DATA CONSUMPTION" FontFamily="{StaticResource MonoFont}" FontSize="8.5" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,4" />
+                                <Grid Margin="0,1">
+                                    <TextBlock Text="SESSION:" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" />
+                                    <TextBlock Text="{Binding SessionTotalText}" FontFamily="{StaticResource MonoFont}" FontSize="9.5" FontWeight="Bold" HorizontalAlignment="Right" />
                                 </Grid>
-                                <Grid Margin="0,2">
-                                    <TextBlock Text="Today (24h):" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" />
-                                    <TextBlock Text="{Binding TodayUsageText}" FontFamily="{StaticResource MonoFont}" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource AccentSkyBrush}" HorizontalAlignment="Right" />
+                                <Grid Margin="0,1">
+                                    <TextBlock Text="TODAY:" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" />
+                                    <TextBlock Text="{Binding TodayUsageText}" FontFamily="{StaticResource MonoFont}" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" HorizontalAlignment="Right" />
                                 </Grid>
-                                <Grid Margin="0,2">
-                                    <TextBlock Text="Past 7 Days (Week):" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" />
-                                    <TextBlock Text="{Binding WeekUsageText}" FontFamily="{StaticResource MonoFont}" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource AccentVioletBrush}" HorizontalAlignment="Right" />
+                                <Grid Margin="0,1">
+                                    <TextBlock Text="7 DAYS:" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" />
+                                    <TextBlock Text="{Binding WeekUsageText}" FontFamily="{StaticResource MonoFont}" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource AccentVioletBrush}" HorizontalAlignment="Right" />
                                 </Grid>
-                                <Grid Margin="0,2">
-                                    <TextBlock Text="Past 30 Days (Month):" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" />
-                                    <TextBlock Text="{Binding MonthUsageText}" FontFamily="{StaticResource MonoFont}" FontSize="11.5" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" HorizontalAlignment="Right" />
+                                <Grid Margin="0,1">
+                                    <TextBlock Text="30 DAYS:" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" />
+                                    <TextBlock Text="{Binding MonthUsageText}" FontFamily="{StaticResource MonoFont}" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" HorizontalAlignment="Right" />
                                 </Grid>
                             </StackPanel>
                         </Border>
 
-                        <!-- Bandwidth Shaping & Daily Quota -->
-                        <TextBlock Text="Token-Bucket Rate Limits &amp; Daily Quota" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,5" />
-                        <Grid Margin="0,0,0,8">
+                        <!-- Hardware Rate Limits & Quotas -->
+                        <TextBlock Text="TOKEN-BUCKET RATE LIMITS" FontFamily="{StaticResource MonoFont}" FontSize="8.5" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,2" />
+                        <Grid Margin="0,0,0,6">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="4" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="Down Cap (KB/s)" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,3" />
-                                <TextBox Text="{Binding DownloadCapKBps, UpdateSourceTrigger=PropertyChanged}"
-                                         IsEnabled="{Binding CanThrottle}"
-                                         Style="{StaticResource DarkTextBoxStyle}"
-                                         FontFamily="{StaticResource MonoFont}" />
+                                <TextBlock Text="RX (KB/s)" FontFamily="{StaticResource MonoFont}" FontSize="8.5" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,2" />
+                                <TextBox Text="{Binding DownloadCapKBps, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanThrottle}" Style="{StaticResource DarkTextBoxStyle}" FontFamily="{StaticResource MonoFont}" Height="20" />
                             </StackPanel>
                             <StackPanel Grid.Column="2">
-                                <TextBlock Text="Up Cap (KB/s)" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,3" />
-                                <TextBox Text="{Binding UploadCapKBps, UpdateSourceTrigger=PropertyChanged}"
-                                         IsEnabled="{Binding CanThrottle}"
-                                         Style="{StaticResource DarkTextBoxStyle}"
-                                         FontFamily="{StaticResource MonoFont}" />
+                                <TextBlock Text="TX (KB/s)" FontFamily="{StaticResource MonoFont}" FontSize="8.5" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,2" />
+                                <TextBox Text="{Binding UploadCapKBps, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanThrottle}" Style="{StaticResource DarkTextBoxStyle}" FontFamily="{StaticResource MonoFont}" Height="20" />
                             </StackPanel>
                         </Grid>
 
-                        <TextBlock Text="Daily Data Quota Limit (MB, 0 = Unlimited)" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,3" />
-                        <TextBox Text="{Binding DailyQuotaMB, UpdateSourceTrigger=PropertyChanged}"
-                                 IsEnabled="{Binding CanThrottle}"
-                                 Style="{StaticResource DarkTextBoxStyle}"
-                                 FontFamily="{StaticResource MonoFont}"
-                                 Margin="0,0,0,10" />
+                        <TextBlock Text="DAILY QUOTA (MB, 0 = UNLTD)" FontFamily="{StaticResource MonoFont}" FontSize="8.5" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,2" />
+                        <TextBox Text="{Binding DailyQuotaMB, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanThrottle}" Style="{StaticResource DarkTextBoxStyle}" FontFamily="{StaticResource MonoFont}" Height="20" Margin="0,0,0,8" />
 
                         <!-- Wake-on-LAN Action -->
-                        <Button Content="Send Wake-on-LAN (WoL) Packet"
+                        <Button Content="SEND WAKE-ON-LAN"
                                 Command="{Binding DataContext.WakeSelectedDeviceCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                 Style="{StaticResource SecondaryButtonStyle}"
+                                Height="20"
+                                Padding="6,1"
+                                FontSize="9"
+                                FontFamily="{StaticResource MonoFont}"
                                 HorizontalAlignment="Stretch"
-                                Margin="0,0,0,12" />
+                                Margin="0,0,0,8" />
 
-                        <!-- Per-Device Domain Blocker -->
-                        <TextBlock Text="Blocked Domains (DNS Filter)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,5" />
-                        <Grid Margin="0,0,0,8">
+                        <!-- Per-Device Domain Filter -->
+                        <TextBlock Text="BLOCKED DOMAINS (DNS SINKHOLE)" FontFamily="{StaticResource MonoFont}" FontSize="8.5" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,2" />
+                        <Grid Margin="0,0,0,4">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="6" />
+                                <ColumnDefinition Width="4" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <TextBox Grid.Column="0"
                                      Text="{Binding DataContext.NewDomainInput, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource DarkTextBoxStyle}"
-                                     ToolTip="Enter a domain such as tiktok.com or youtube.com" />
+                                     Height="20"
+                                     FontSize="9.5" />
                             <Button Grid.Column="2"
-                                    Content="Block"
+                                    Content="BLOCK"
                                     Command="{Binding DataContext.AddBlockedDomainCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                    Style="{StaticResource SecondaryButtonStyle}" />
+                                    Style="{StaticResource SecondaryButtonStyle}"
+                                    Height="20"
+                                    Padding="6,1"
+                                    FontSize="9"
+                                    FontFamily="{StaticResource MonoFont}" />
                         </Grid>
 
                         <ItemsControl ItemsSource="{Binding BlockedDomains}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Background="#131C2B" BorderBrush="#243246" BorderThickness="1" CornerRadius="2.5" Padding="8,4" Margin="0,0,0,4">
+                                    <Border Background="#111317" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="4,2" Margin="0,0,0,2">
                                         <Grid>
-                                            <TextBlock Text="{Binding}" FontFamily="{StaticResource MonoFont}" FontSize="11" VerticalAlignment="Center" />
-                                            <Button Content="Remove"
+                                            <TextBlock Text="{Binding}" FontFamily="{StaticResource MonoFont}" FontSize="9.5" VerticalAlignment="Center" />
+                                            <Button Content="✕"
                                                     Command="{Binding DataContext.RemoveBlockedDomainCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                     CommandParameter="{Binding}"
                                                     Style="{StaticResource SecondaryButtonStyle}"
-                                                    Padding="6,2"
-                                                    FontSize="10"
+                                                    Height="16"
+                                                    Padding="4,0"
+                                                    FontSize="8"
+                                                    FontFamily="{StaticResource MonoFont}"
                                                     HorizontalAlignment="Right" />
                                         </Grid>
                                     </Border>
@@ -1483,26 +1037,29 @@
             </Border>
         </Grid>
 
-        <!-- 4. BOTTOM STATUS FOOTER -->
+        <!-- =========================================================================
+             ROW 3: BOTTOM HARDWARE STATUS BAR (HEIGHT 24)
+             ========================================================================= -->
         <Border Grid.Row="3"
-                Background="#E606090F"
+                Background="#111317"
                 BorderBrush="{StaticResource BorderSubtleBrush}"
                 BorderThickness="0,1,0,0"
-                Padding="16,0">
+                Padding="8,0">
             <Grid>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Width="6" Height="6" CornerRadius="1.5" Background="{StaticResource AccentEmeraldBrush}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                    <Border Width="5" Height="5" Background="{StaticResource AccentEmeraldBrush}" Margin="0,0,6,0" VerticalAlignment="Center" />
                     <TextBlock Text="{Binding StatusMessage}"
-                               FontSize="11"
+                               FontFamily="{StaticResource MonoFont}"
+                               FontSize="10"
                                Foreground="{StaticResource TextSecondaryBrush}"
                                VerticalAlignment="Center" />
                 </StackPanel>
-                <TextBlock Text="{Binding DriverStatusText}"
-                           FontFamily="{StaticResource MonoFont}"
-                           FontSize="10.5"
-                           Foreground="{StaticResource TextMutedBrush}"
-                           HorizontalAlignment="Right"
-                           VerticalAlignment="Center" />
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <TextBlock Text="PACKET ENGINE: " FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextMutedBrush}" />
+                    <TextBlock Text="{Binding DriverStatusText}" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" />
+                    <TextBlock Text="  |  ZERO-ALLOC RING BUFFER" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource AccentEmeraldBrush}" Margin="4,0,0,0" />
+                </StackPanel>
             </Grid>
         </Border>
     </Grid>
