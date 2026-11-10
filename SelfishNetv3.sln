@@ -1,0 +1,37 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35825.156 d17.13
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SelfishNet", "SelfishNetV3\SelfishNet.csproj", "{299D869A-3E55-459A-BEF9-20188B8419E3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SelfishNet.Tests", "SelfishNet.Tests\SelfishNet.Tests.csproj", "{8B6E4A12-9C34-4D7E-A123-56789ABCDEF0}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{299D869A-3E55-459A-BEF9-20188B8419E3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{299D869A-3E55-459A-BEF9-20188B8419E3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{299D869A-3E55-459A-BEF9-20188B8419E3}.Debug|x64.ActiveCfg = Debug|x64
+		{299D869A-3E55-459A-BEF9-20188B8419E3}.Debug|x64.Build.0 = Debug|x64
+		{299D869A-3E55-459A-BEF9-20188B8419E3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{299D869A-3E55-459A-BEF9-20188B8419E3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{299D869A-3E55-459A-BEF9-20188B8419E3}.Release|x64.ActiveCfg = Release|x64
+		{299D869A-3E55-459A-BEF9-20188B8419E3}.Release|x64.Build.0 = Release|x64
+		{8B6E4A12-9C34-4D7E-A123-56789ABCDEF0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8B6E4A12-9C34-4D7E-A123-56789ABCDEF0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8B6E4A12-9C34-4D7E-A123-56789ABCDEF0}.Debug|x64.ActiveCfg = Debug|x64
+		{8B6E4A12-9C34-4D7E-A123-56789ABCDEF0}.Debug|x64.Build.0 = Debug|x64
+		{8B6E4A12-9C34-4D7E-A123-56789ABCDEF0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8B6E4A12-9C34-4D7E-A123-56789ABCDEF0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8B6E4A12-9C34-4D7E-A123-56789ABCDEF0}.Release|x64.ActiveCfg = Release|x64
+		{8B6E4A12-9C34-4D7E-A123-56789ABCDEF0}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
