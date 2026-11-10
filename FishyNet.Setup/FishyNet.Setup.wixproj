@@ -1,0 +1,16 @@
+<Project Sdk="WixToolset.Sdk/7.0.1">
+  <PropertyGroup>
+    <InstallerVersion Condition="'$(InstallerVersion)' == ''">3.2.0</InstallerVersion>
+    <OutputName>FishyNet-$(InstallerVersion)-win-x64</OutputName>
+    <OutputType>Package</OutputType>
+    <Platform>x64</Platform>
+    <Platforms>x64</Platforms>
+    <PublishDir Condition="'$(PublishDir)' == ''">..\FishyNet\bin\publish-win-x64</PublishDir>
+    <SetupDir Condition="'$(SetupDir)' == ''">$(MSBuildProjectDirectory)</SetupDir>
+    <DefineConstants>Version=$(InstallerVersion);PublishDir=$(PublishDir);SetupDir=$(SetupDir)</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.UI.wixext" Version="7.0.1" />
+  </ItemGroup>
+</Project>

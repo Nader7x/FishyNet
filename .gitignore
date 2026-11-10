@@ -338,3 +338,11 @@ ASALocalRun/
 
 # BeatPulse healthcheck temp database
 healthchecksdb
+
+# FishyNet Build & Installer Artifacts
+artifacts/
+*.msi
+*.wixpdb
+publish/
+publish-win-x64/
+PublishSingleFile/

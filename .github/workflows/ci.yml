@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore Dependencies
+        run: dotnet restore FishyNet.sln
+
+      - name: Build Solution (Release)
+        run: dotnet build FishyNet.sln -c Release --no-restore
+
+      - name: Run Unit & Regression Tests
+        run: dotnet test FishyNet.sln -c Release --no-build --verbosity normal --logger "trx;LogFileName=test_results.trx"
+
+      - name: Build MSI Installer
+        run: powershell -ExecutionPolicy Bypass -File .\build-installer.ps1 -Configuration Release -OutputDir artifacts
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: '**/TestResults/*.trx'
+          if-no-files-found: ignore
+
+      - name: Upload MSI Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FishyNet-MSI-Package
+          path: artifacts/*
+          if-no-files-found: error

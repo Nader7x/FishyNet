@@ -1,0 +1,86 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 3.2.0)'
+        required: true
+        default: '3.2.0'
+      draft:
+        description: 'Create as draft'
+        type: boolean
+        default: false
+      prerelease:
+        description: 'Create as pre-release'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish-release:
+    name: Build & Publish Release
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine Version
+        id: get_version
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $ver = "${{ inputs.version }}".TrimStart('v')
+          } else {
+            $ref = "${{ github.ref }}"
+            $ver = $ref.Substring($ref.LastIndexOf('/') + 1).TrimStart('v')
+          }
+          Write-Host "Resolved Version: $ver"
+          "version=$ver" >> $env:GITHUB_OUTPUT
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Run Test Suite
+        run: dotnet test FishyNet.sln -c Release --verbosity normal
+
+      - name: Build Standalone MSI Installer
+        shell: pwsh
+        run: |
+          .\build-installer.ps1 -Configuration Release -Version "${{ steps.get_version.outputs.version }}" -OutputDir artifacts
+
+      - name: Create Portable Zip Package
+        shell: pwsh
+        run: |
+          $ver = "${{ steps.get_version.outputs.version }}"
+          $pubDir = "FishyNet/bin/publish-win-x64"
+          $zipPath = "artifacts/FishyNet-$ver-win-x64-portable.zip"
+          Compress-Archive -Path "$pubDir/*" -DestinationPath $zipPath -Force
+          $zipHash = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash
+          Set-Content -Path "$zipPath.sha256" -Value "$zipHash *FishyNet-$ver-win-x64-portable.zip"
+          Write-Host "Created Portable Archive: $zipPath (SHA256: $zipHash)"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "FishyNet v${{ steps.get_version.outputs.version }}"
+          tag_name: ${{ github.ref_name }}
+          draft: ${{ inputs.draft || false }}
+          prerelease: ${{ inputs.prerelease || false }}
+          generate_release_notes: true
+          files: |
+            artifacts/*.msi
+            artifacts/*.zip
+            artifacts/*.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

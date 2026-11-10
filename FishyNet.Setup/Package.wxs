@@ -1,0 +1,61 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package Name="FishyNet"
+           Manufacturer="FishyNet"
+           Version="$(var.Version)"
+           UpgradeCode="7E9A34C1-4D3B-4C91-9F22-54078D1C7A92"
+           Scope="perMachine"
+           Language="1033">
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="AppIcon" SourceFile="$(var.SetupDir)\app.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/FishyNet/FishyNet" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="FishyNet" />
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="FishyNet" />
+    </StandardDirectory>
+
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="MainExecutable" Guid="31CA79A9-C591-4D78-9B43-4DF89E0BA031">
+        <File Id="FishyNetExecutable"
+              Source="$(var.PublishDir)\FishyNet.exe"
+              KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <ComponentGroup Id="AppFilesGroup" Directory="INSTALLFOLDER">
+      <Files Include="$(var.PublishDir)\**">
+        <Exclude Files="$(var.PublishDir)\FishyNet.exe" />
+      </Files>
+    </ComponentGroup>
+
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="ApplicationShortcut" Guid="92B30125-94B6-4E26-809D-DC3042A8F6C2">
+        <Shortcut Id="StartMenuShortcut"
+                  Name="FishyNet"
+                  Description="FishyNet LAN Bandwidth Shaper &amp; Telemetry"
+                  Target="[INSTALLFOLDER]FishyNet.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="AppIcon" />
+        <RemoveFolder Id="CleanUpShortCut" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\FishyNet" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <Feature Id="MainFeature" Title="FishyNet Application" Level="1">
+      <ComponentRef Id="MainExecutable" />
+      <ComponentGroupRef Id="AppFilesGroup" />
+      <ComponentRef Id="ApplicationShortcut" />
+    </Feature>
+
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.SetupDir)\License.rtf" />
+  </Package>
+</Wix>
