@@ -7,6 +7,7 @@
          ========================================================================= -->
     <Color x:Key="CanvasBgColor">#111317</Color>
     <Color x:Key="SurfaceBgColor">#181B21</Color>
+    <Color x:Key="SubtleBgColor">#14171E</Color>
     <Color x:Key="ElevatedBgColor">#22262E</Color>
     <Color x:Key="HoverBgColor">#2C313C</Color>
     <Color x:Key="BorderColor">#2A2E38</Color>
@@ -26,6 +27,7 @@
     <!-- Solid High-Contrast Matte Brushes -->
     <SolidColorBrush x:Key="CanvasBgBrush" Color="{StaticResource CanvasBgColor}" />
     <SolidColorBrush x:Key="SurfaceBgBrush" Color="{StaticResource SurfaceBgColor}" />
+    <SolidColorBrush x:Key="SubtleBgBrush" Color="{StaticResource SubtleBgColor}" />
     <SolidColorBrush x:Key="ElevatedBgBrush" Color="{StaticResource ElevatedBgColor}" />
     <SolidColorBrush x:Key="HoverBgBrush" Color="{StaticResource HoverBgColor}" />
     <SolidColorBrush x:Key="BorderSubtleBrush" Color="{StaticResource BorderColor}" />
@@ -93,12 +95,12 @@
     <Style TargetType="ScrollBar">
         <Setter Property="OverridesDefaultStyle" Value="True" />
         <Setter Property="SnapsToDevicePixels" Value="True" />
-        <Setter Property="Background" Value="#111317" />
-        <Setter Property="Width" Value="6" />
+        <Setter Property="Background" Value="{StaticResource CanvasBgBrush}" />
+        <Setter Property="Width" Value="9" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ScrollBar">
-                    <Border Background="#111317">
+                    <Border Background="{StaticResource CanvasBgBrush}">
                         <Track x:Name="PART_Track" IsDirectionReversed="True" Focusable="False">
                             <Track.DecreaseRepeatButton>
                                 <RepeatButton Command="ScrollBar.PageUpCommand" Style="{StaticResource ScrollBarPageButtonStyle}" />
@@ -117,11 +119,11 @@
         <Style.Triggers>
             <Trigger Property="Orientation" Value="Horizontal">
                 <Setter Property="Width" Value="Auto" />
-                <Setter Property="Height" Value="6" />
+                <Setter Property="Height" Value="9" />
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="ScrollBar">
-                            <Border Background="#111317">
+                            <Border Background="{StaticResource CanvasBgBrush}">
                                 <Track x:Name="PART_Track" IsDirectionReversed="False" Focusable="False">
                                     <Track.DecreaseRepeatButton>
                                         <RepeatButton Command="ScrollBar.PageLeftCommand" Style="{StaticResource ScrollBarPageButtonStyle}" />
@@ -490,20 +492,19 @@
                 <ControlTemplate TargetType="ComboBoxItem">
                     <Border x:Name="ItemBd"
                             Background="{TemplateBinding Background}"
-                            BorderBrush="Transparent"
-                            BorderThickness="2,0,0,0"
+                            BorderThickness="0"
                             CornerRadius="0"
                             Padding="{TemplateBinding Padding}">
                         <ContentPresenter VerticalAlignment="Center" />
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsHighlighted" Value="True">
-                            <Setter TargetName="ItemBd" Property="Background" Value="#22262E" />
-                            <Setter TargetName="ItemBd" Property="BorderBrush" Value="#06B6D4" />
+                            <Setter TargetName="ItemBd" Property="Background" Value="{StaticResource ElevatedBgBrush}" />
+                            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="ItemBd" Property="Background" Value="#1C2D2B" />
-                            <Setter TargetName="ItemBd" Property="BorderBrush" Value="#10B981" />
+                            <Setter Property="Foreground" Value="{StaticResource AccentEmeraldBrush}" />
                             <Setter Property="FontWeight" Value="Bold" />
                         </Trigger>
                     </ControlTemplate.Triggers>
@@ -620,8 +621,7 @@
                     <Grid SnapsToDevicePixels="True">
                         <Border x:Name="MenuBd"
                                 Background="{TemplateBinding Background}"
-                                BorderBrush="Transparent"
-                                BorderThickness="2,0,0,0"
+                                BorderThickness="0"
                                 CornerRadius="0"
                                 Padding="{TemplateBinding Padding}">
                             <Grid>
@@ -649,7 +649,7 @@
                                IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}"
                                Placement="Right"
                                PopupAnimation="None">
-                            <Border Background="#181B21"
+                            <Border Background="{StaticResource SurfaceBgBrush}"
                                     BorderBrush="{StaticResource BorderActiveBrush}"
                                     BorderThickness="1"
                                     CornerRadius="0"
@@ -663,9 +663,9 @@
                             <Setter TargetName="SubMenuArrow" Property="Visibility" Value="Visible" />
                         </Trigger>
                         <Trigger Property="IsHighlighted" Value="True">
-                            <Setter TargetName="MenuBd" Property="Background" Value="#22262E" />
-                            <Setter TargetName="MenuBd" Property="BorderBrush" Value="#10B981" />
-                            <Setter TargetName="SubMenuArrow" Property="Stroke" Value="#10B981" />
+                            <Setter TargetName="MenuBd" Property="Background" Value="{StaticResource ElevatedBgBrush}" />
+                            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+                            <Setter TargetName="SubMenuArrow" Property="Stroke" Value="{StaticResource TextPrimaryBrush}" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Foreground" Value="#475569" />
@@ -910,7 +910,7 @@
         <Setter Property="Foreground" Value="#94A3B8" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Width" Value="46" />
-        <Setter Property="Height" Value="32" />
+        <Setter Property="Height" Value="34" />
         <Setter Property="Focusable" Value="False" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Template">
@@ -938,7 +938,7 @@
         <Setter Property="Foreground" Value="#94A3B8" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Width" Value="46" />
-        <Setter Property="Height" Value="32" />
+        <Setter Property="Height" Value="34" />
         <Setter Property="Focusable" Value="False" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Template">

@@ -2,6 +2,9 @@ using System.ComponentModel;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -193,5 +196,15 @@ public partial class MainWindow : Window
     private void OnDismissTopologyHudClicked(object sender, RoutedEventArgs e)
     {
         _viewModel.SelectedDevice = null;
+    }
+
+    private void CapTextBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter && sender is TextBox tb)
+        {
+            BindingExpression? binding = tb.GetBindingExpression(TextBox.TextProperty);
+            binding?.UpdateSource();
+            tb.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
+        }
     }
 }

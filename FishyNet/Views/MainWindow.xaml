@@ -58,11 +58,11 @@
 
                 <!-- Brand & Version Tag -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
-                    <Border Background="#111317" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="2" Margin="0,0,7,0">
+                    <Border Background="{StaticResource CanvasBgBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="2" Margin="0,0,7,0">
                         <Image x:Name="BrandLogoImage" Width="16" Height="16" RenderOptions.BitmapScalingMode="NearestNeighbor" />
                     </Border>
                     <TextBlock Text="FISHYNET" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
-                    <TextBlock Text="v3.2.0" FontFamily="{StaticResource MonoFont}" FontSize="9.5" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" Margin="5,1,0,0" />
+                    <TextBlock Text="v3.2.0" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" Margin="5,1,0,0" />
                 </StackPanel>
 
                 <!-- Hardware NIC Selector -->
@@ -71,12 +71,12 @@
                     <ComboBox ItemsSource="{Binding Adapters}"
                               SelectedItem="{Binding SelectedAdapter}"
                               Height="22"
-                              Width="200"
-                              FontSize="10.5">
+                              Width="160"
+                              FontSize="10">
                         <ComboBox.ItemTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="{Binding Description}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="115" />
+                                    <TextBlock Text="{Binding Description}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="95" />
                                     <TextBlock Text=" · " Foreground="{StaticResource TextMutedBrush}" />
                                     <TextBlock Text="{Binding LocalIp}" FontFamily="{StaticResource MonoFont}" Foreground="{StaticResource AccentSkyBrush}" FontWeight="Bold" />
                                 </StackPanel>
@@ -85,25 +85,18 @@
                     </ComboBox>
                 </StackPanel>
 
-                <!-- Inline Real-time Hardware Telemetry (Separated by 1px Hairlines) -->
+                <!-- Inline Real-time Hardware Telemetry (Instantaneous Metrics) -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,0">
                     <Rectangle Width="1" Height="16" Fill="{StaticResource BorderSubtleBrush}" Margin="0,0,10,0" VerticalAlignment="Center" />
                     <TextBlock Text="RX " FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding TotalDownloadText}" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <TextBlock Text="{Binding TotalDownloadText}" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" VerticalAlignment="Center" Margin="0,0,10,0" />
 
                     <TextBlock Text="TX " FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding TotalUploadText}" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource AccentVioletBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
-
-                    <Rectangle Width="1" Height="16" Fill="{StaticResource BorderSubtleBrush}" Margin="0,0,10,0" VerticalAlignment="Center" />
-                    <TextBlock Text="PK " FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding PeakDownloadText}" FontFamily="{StaticResource MonoFont}" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
-
-                    <TextBlock Text="SES " FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding SessionTotalText}" FontFamily="{StaticResource MonoFont}" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <TextBlock Text="{Binding TotalUploadText}" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource AccentVioletBrush}" VerticalAlignment="Center" Margin="0,0,10,0" />
 
                     <Rectangle Width="1" Height="16" Fill="{StaticResource BorderSubtleBrush}" Margin="0,0,10,0" VerticalAlignment="Center" />
                     <TextBlock Text="RTT " FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding GatewayLatencyText}" FontFamily="{StaticResource MonoFont}" FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding GatewayLatencyText}" FontFamily="{StaticResource MonoFont}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" VerticalAlignment="Center" />
                     <Rectangle Width="1" Height="16" Fill="{StaticResource BorderSubtleBrush}" Margin="10,0,0,0" VerticalAlignment="Center" />
                 </StackPanel>
 
@@ -138,7 +131,7 @@
                             ToolTip="Enforce immediate 64 KB/s throttle on all background hosts to secure gaming RTT">
                         <Button.Style>
                             <Style TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
-                                <Setter Property="Background" Value="#181B21" />
+                                <Setter Property="Background" Value="{StaticResource SurfaceBgBrush}" />
                                 <Setter Property="BorderBrush" Value="{StaticResource AccentSkyBrush}" />
                                 <Setter Property="Foreground" Value="{StaticResource AccentSkyBrush}" />
                                 <Style.Triggers>
@@ -157,7 +150,7 @@
                 <!-- Column 4 is empty, providing generous natural drag area for the WindowChrome -->
 
                 <!-- Window Control Buttons (Native Windows 10 Vector Chrome) -->
-                <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True">
+                <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Stretch" WindowChrome.IsHitTestVisibleInChrome="True">
                     <Button Command="{Binding MinimizeWindowCommand}"
                             Style="{StaticResource WindowChromeButtonStyle}"
                             ToolTip="Minimize">
@@ -182,7 +175,7 @@
              Hosts, search, filters, presets, and secondary tool shortcuts
              ========================================================================= -->
         <Border Grid.Row="1"
-                Background="#14171E"
+                Background="{StaticResource SubtleBgBrush}"
                 BorderBrush="{StaticResource BorderSubtleBrush}"
                 BorderThickness="0,0,0,1"
                 Padding="8,5">
@@ -207,7 +200,7 @@
                          Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged}"
                          Style="{StaticResource DarkTextBoxStyle}"
                          Height="22"
-                         FontSize="10.5"
+                         FontSize="10"
                          FontFamily="{StaticResource MonoFont}"
                          ToolTip="Filter hosts by Display Name, IPv4, MAC, or OUI Vendor" />
 
@@ -381,8 +374,8 @@
                                             Background="Transparent">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
-                                                <Border Background="#141E2D"
-                                                        BorderBrush="#25354C"
+                                                <Border Background="{StaticResource CanvasBgBrush}"
+                                                        BorderBrush="{StaticResource BorderSubtleBrush}"
                                                         BorderThickness="1"
                                                         Padding="4,1">
                                                     <TextBlock Text="{Binding StatusBadgeText}"
@@ -405,7 +398,7 @@
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" MaxWidth="150" />
                                         <TextBlock Text=" · " FontSize="9" Foreground="{StaticResource TextMutedBrush}" />
-                                        <TextBlock Text="{Binding Vendor}" FontSize="9.5" Foreground="{StaticResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" MaxWidth="110" />
+                                        <TextBlock Text="{Binding Vendor}" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" MaxWidth="110" />
                                     </StackPanel>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
@@ -416,7 +409,7 @@
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding IpAddressText}" FontFamily="{StaticResource MonoFont}" FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
+                                        <TextBlock Text="{Binding IpAddressText}" FontFamily="{StaticResource MonoFont}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
                                         <TextBlock Text="{Binding MacAddressText}" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextMutedBrush}" />
                                     </StackPanel>
                                 </DataTemplate>
@@ -430,7 +423,7 @@
                                     <StackPanel VerticalAlignment="Center" Margin="2,0">
                                         <Grid>
                                             <TextBlock Text="{Binding DownloadSpeedText}" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" />
-                                            <TextBlock Text="{Binding DownloadCapStatusText}" FontFamily="{StaticResource MonoFont}" FontSize="8.5" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Right" VerticalAlignment="Bottom" />
+                                            <TextBlock Text="{Binding DownloadCapStatusText}" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Right" VerticalAlignment="Bottom" />
                                         </Grid>
                                         <ProgressBar Value="{Binding DownloadBarRatio, Mode=OneWay}"
                                                      Minimum="0" Maximum="1"
@@ -449,7 +442,7 @@
                                     <StackPanel VerticalAlignment="Center" Margin="2,0">
                                         <Grid>
                                             <TextBlock Text="{Binding UploadSpeedText}" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource AccentVioletBrush}" />
-                                            <TextBlock Text="{Binding UploadCapStatusText}" FontFamily="{StaticResource MonoFont}" FontSize="8.5" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Right" VerticalAlignment="Bottom" />
+                                            <TextBlock Text="{Binding UploadCapStatusText}" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Right" VerticalAlignment="Bottom" />
                                         </Grid>
                                         <ProgressBar Value="{Binding UploadBarRatio, Mode=OneWay}"
                                                      Minimum="0" Maximum="1"
@@ -474,7 +467,8 @@
                         <DataGridTemplateColumn Header="RX CAP" Width="74">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <TextBox Text="{Binding DownloadCapKBps, UpdateSourceTrigger=PropertyChanged}"
+                                    <TextBox Text="{Binding DownloadCapKBps, UpdateSourceTrigger=LostFocus}"
+                                             KeyDown="CapTextBox_KeyDown"
                                              IsEnabled="{Binding CanThrottle}"
                                              Style="{StaticResource DarkTextBoxStyle}"
                                              FontFamily="{StaticResource MonoFont}"
@@ -490,7 +484,8 @@
                         <DataGridTemplateColumn Header="TX CAP" Width="74">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <TextBox Text="{Binding UploadCapKBps, UpdateSourceTrigger=PropertyChanged}"
+                                    <TextBox Text="{Binding UploadCapKBps, UpdateSourceTrigger=LostFocus}"
+                                             KeyDown="CapTextBox_KeyDown"
                                              IsEnabled="{Binding CanThrottle}"
                                              Style="{StaticResource DarkTextBoxStyle}"
                                              FontFamily="{StaticResource MonoFont}"
@@ -507,8 +502,8 @@
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding WeekUsageText, StringFormat='7D: {0}'}" FontFamily="{StaticResource MonoFont}" FontSize="9.5" Foreground="{StaticResource TextSecondaryBrush}" />
-                                        <TextBlock Text="{Binding MonthUsageText, StringFormat='30D: {0}'}" FontFamily="{StaticResource MonoFont}" FontSize="8.5" Foreground="{StaticResource TextMutedBrush}" />
+                                        <TextBlock Text="{Binding WeekUsageText, StringFormat='7D: {0}'}" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" />
+                                        <TextBlock Text="{Binding MonthUsageText, StringFormat='30D: {0}'}" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextMutedBrush}" />
                                     </StackPanel>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
@@ -529,19 +524,6 @@
                                     <CheckBox IsChecked="{Binding IsBlocked, UpdateSourceTrigger=PropertyChanged}"
                                               IsEnabled="{Binding CanThrottle}"
                                               ToolTip="Kill-Switch: Drop all packets for this host"
-                                              HorizontalAlignment="Center"
-                                              VerticalAlignment="Center" />
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-
-                        <!-- Monitor Redirection -->
-                        <DataGridTemplateColumn Header="MON" Width="48">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <CheckBox IsChecked="{Binding IsSpoofed, UpdateSourceTrigger=PropertyChanged}"
-                                              IsEnabled="{Binding CanThrottle}"
-                                              ToolTip="Checked = Monitored (Redirected via Npcap). Unchecked = Bypassed (Direct to gateway)."
                                               HorizontalAlignment="Center"
                                               VerticalAlignment="Center" />
                                 </DataTemplate>
@@ -574,9 +556,9 @@
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
 
-                                <!-- Strip Controls -->
+                                 <!-- Strip Controls -->
                                 <Grid Grid.Row="0" Margin="0,0,0,3">
-                                    <TextBlock Text="LIVE PER-DEVICE DNS AUDIT STREAM" FontFamily="{StaticResource MonoFont}" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" VerticalAlignment="Center" />
+                                    <TextBlock Text="LIVE PER-DEVICE DNS AUDIT STREAM" FontFamily="{StaticResource MonoFont}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" VerticalAlignment="Center" />
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                         <Button Content="BLOCK DOMAIN"
                                                 Command="{Binding BlockSelectedDnsDomainCommand}"
@@ -605,11 +587,11 @@
                                           IsReadOnly="True"
                                           RowHeight="24">
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="TIME (UTC)" Binding="{Binding TimestampUtc, StringFormat={}{0:HH:mm:ss}}" Width="80" FontFamily="{StaticResource MonoFont}" FontSize="9.5" />
+                                        <DataGridTextColumn Header="TIME (UTC)" Binding="{Binding TimestampUtc, StringFormat={}{0:HH:mm:ss}}" Width="80" FontFamily="{StaticResource MonoFont}" FontSize="9" />
                                         <DataGridTextColumn Header="DEVICE" Binding="{Binding DeviceName}" Width="150" FontWeight="SemiBold" FontSize="10" />
-                                        <DataGridTextColumn Header="SOURCE IP" Binding="{Binding DeviceIp}" Width="110" FontFamily="{StaticResource MonoFont}" FontSize="9.5" />
+                                        <DataGridTextColumn Header="SOURCE IP" Binding="{Binding DeviceIp}" Width="110" FontFamily="{StaticResource MonoFont}" FontSize="10" />
                                         <DataGridTextColumn Header="QUERIED DOMAIN" Binding="{Binding Domain}" Width="*" FontFamily="{StaticResource MonoFont}" FontSize="10" Foreground="{StaticResource AccentSkyBrush}" />
-                                        <DataGridTextColumn Header="BLOCKED" Binding="{Binding WasBlocked}" Width="70" FontFamily="{StaticResource MonoFont}" FontSize="9.5" />
+                                        <DataGridTextColumn Header="BLOCKED" Binding="{Binding WasBlocked}" Width="70" FontFamily="{StaticResource MonoFont}" FontSize="9" />
                                     </DataGrid.Columns>
                                 </DataGrid>
                             </Grid>
@@ -656,7 +638,7 @@
                                     </Grid.ColumnDefinitions>
 
                                     <!-- Lightweight Daily Chart -->
-                                    <Border Grid.Column="0" Background="#111317" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="6">
+                                    <Border Grid.Column="0" Background="{StaticResource CanvasBgBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="6">
                                         <controls:UsageBarChartControl Series="{Binding HistoryDailySeries}" />
                                     </Border>
 
@@ -669,12 +651,12 @@
                                               RowHeight="24">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn Header="HOST" Binding="{Binding DisplayName}" Width="1.3*" FontWeight="SemiBold" FontSize="10" />
-                                            <DataGridTextColumn Header="IPV4" Binding="{Binding IpAddressText}" Width="110" FontFamily="{StaticResource MonoFont}" FontSize="9.5" />
+                                            <DataGridTextColumn Header="IPV4" Binding="{Binding IpAddressText}" Width="110" FontFamily="{StaticResource MonoFont}" FontSize="10" />
                                             <DataGridTextColumn Header="MAC" Binding="{Binding MacAddressText}" Width="125" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextMutedBrush}" />
                                             <DataGridTextColumn Header="TOTAL" Binding="{Binding TotalBytesText}" Width="85" FontFamily="{StaticResource MonoFont}" FontWeight="Bold" FontSize="10" Foreground="{StaticResource TextPrimaryBrush}" />
-                                            <DataGridTextColumn Header="RX" Binding="{Binding DownloadBytesText}" Width="85" FontFamily="{StaticResource MonoFont}" FontSize="9.5" Foreground="{StaticResource AccentSkyBrush}" />
-                                            <DataGridTextColumn Header="TX" Binding="{Binding UploadBytesText}" Width="85" FontFamily="{StaticResource MonoFont}" FontSize="9.5" Foreground="{StaticResource AccentVioletBrush}" />
-                                            <DataGridTextColumn Header="LAN SHARE" Binding="{Binding LanSharePercentageText}" Width="80" FontFamily="{StaticResource MonoFont}" FontSize="9.5" Foreground="{StaticResource AccentAmberBrush}" />
+                                            <DataGridTextColumn Header="RX" Binding="{Binding DownloadBytesText}" Width="85" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource AccentSkyBrush}" />
+                                            <DataGridTextColumn Header="TX" Binding="{Binding UploadBytesText}" Width="85" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource AccentVioletBrush}" />
+                                            <DataGridTextColumn Header="LAN SHARE" Binding="{Binding LanSharePercentageText}" Width="80" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource AccentAmberBrush}" />
                                         </DataGrid.Columns>
                                     </DataGrid>
                                 </Grid>
@@ -690,8 +672,8 @@
                                 </Grid.RowDefinitions>
 
                                 <Grid Grid.Row="0" Margin="0,0,0,3">
-                                    <TextBlock Text="PASSIVE ARP MITM &amp; CACHE POISONING SHIELD" FontFamily="{StaticResource MonoFont}" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding ArpGuardStatusText}" FontFamily="{StaticResource MonoFont}" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    <TextBlock Text="PASSIVE ARP MITM &amp; CACHE POISONING SHIELD" FontFamily="{StaticResource MonoFont}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding ArpGuardStatusText}" FontFamily="{StaticResource MonoFont}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" HorizontalAlignment="Right" VerticalAlignment="Center" />
                                 </Grid>
 
                                 <DataGrid Grid.Row="1"
@@ -701,8 +683,8 @@
                                           IsReadOnly="True"
                                           RowHeight="24">
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="TIME" Binding="{Binding TimestampUtc, StringFormat={}{0:HH:mm:ss}}" Width="75" FontFamily="{StaticResource MonoFont}" FontSize="9.5" />
-                                        <DataGridTextColumn Header="TARGET IP" Binding="{Binding TargetIp}" Width="110" FontFamily="{StaticResource MonoFont}" FontSize="9.5" />
+                                        <DataGridTextColumn Header="TIME" Binding="{Binding TimestampUtc, StringFormat={}{0:HH:mm:ss}}" Width="75" FontFamily="{StaticResource MonoFont}" FontSize="9" />
+                                        <DataGridTextColumn Header="TARGET IP" Binding="{Binding TargetIp}" Width="110" FontFamily="{StaticResource MonoFont}" FontSize="10" />
                                         <DataGridTextColumn Header="EXPECTED MAC" Binding="{Binding ExpectedMac}" Width="135" FontFamily="{StaticResource MonoFont}" FontSize="9" />
                                         <DataGridTextColumn Header="OFFENDING MAC" Binding="{Binding OffendingMac}" Width="135" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource AccentCrimsonBrush}" FontWeight="Bold" />
                                         <DataGridTextColumn Header="INCIDENT DETAILS" Binding="{Binding Description}" Width="*" FontSize="10" />
@@ -725,7 +707,7 @@
                                 </Grid.ColumnDefinitions>
 
                                 <!-- HTTP/TLS -->
-                                <Border Grid.Column="0" Background="#111317" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="10,8">
+                                <Border Grid.Column="0" Background="{StaticResource CanvasBgBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="10,8">
                                     <StackPanel VerticalAlignment="Center">
                                         <TextBlock Text="HTTP / TLS (80, 443)" FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" />
                                         <TextBlock Text="{Binding ProtoHttpTlsSummary}" FontFamily="{StaticResource MonoFont}" FontSize="13" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" Margin="0,4,0,0" />
@@ -733,7 +715,7 @@
                                 </Border>
 
                                 <!-- TCP Flows -->
-                                <Border Grid.Column="2" Background="#111317" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="10,8">
+                                <Border Grid.Column="2" Background="{StaticResource CanvasBgBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="10,8">
                                     <StackPanel VerticalAlignment="Center">
                                         <TextBlock Text="TCP FLOWS" FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" />
                                         <TextBlock Text="{Binding ProtoTcpSummary}" FontFamily="{StaticResource MonoFont}" FontSize="13" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" Margin="0,4,0,0" />
@@ -741,7 +723,7 @@
                                 </Border>
 
                                 <!-- UDP Datagrams -->
-                                <Border Grid.Column="4" Background="#111317" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="10,8">
+                                <Border Grid.Column="4" Background="{StaticResource CanvasBgBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="10,8">
                                     <StackPanel VerticalAlignment="Center">
                                         <TextBlock Text="UDP DATAGRAMS" FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" />
                                         <TextBlock Text="{Binding ProtoUdpSummary}" FontFamily="{StaticResource MonoFont}" FontSize="13" FontWeight="Bold" Foreground="{StaticResource AccentAmberBrush}" Margin="0,4,0,0" />
@@ -749,7 +731,7 @@
                                 </Border>
 
                                 <!-- DNS Queries -->
-                                <Border Grid.Column="6" Background="#111317" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="10,8">
+                                <Border Grid.Column="6" Background="{StaticResource CanvasBgBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="10,8">
                                     <StackPanel VerticalAlignment="Center">
                                         <TextBlock Text="DNS AUDIT (PORT 53)" FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" />
                                         <TextBlock Text="{Binding ProtoDnsSummary}" FontFamily="{StaticResource MonoFont}" FontSize="13" FontWeight="Bold" Foreground="{StaticResource AccentVioletBrush}" Margin="0,4,0,0" />
@@ -767,7 +749,7 @@
                                 </Grid.RowDefinitions>
 
                                 <Grid Grid.Row="0" Margin="0,0,0,3">
-                                    <TextBlock Text="AUTONOMOUS TIME-OF-DAY ENGINE &amp; AUTO-GAMING RULES" FontFamily="{StaticResource MonoFont}" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" VerticalAlignment="Center" />
+                                    <TextBlock Text="AUTONOMOUS TIME-OF-DAY ENGINE &amp; AUTO-GAMING RULES" FontFamily="{StaticResource MonoFont}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" VerticalAlignment="Center" />
                                     <Button Content="RESET RULES"
                                             Command="{Binding ResetSmartRulesCommand}"
                                             Style="{StaticResource SecondaryButtonStyle}"
@@ -782,7 +764,7 @@
                                     <ItemsControl ItemsSource="{Binding SmartRules}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Border Background="#111317" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="8,6" Margin="0,0,0,3">
+                                                <Border Background="{StaticResource CanvasBgBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="8,6" Margin="0,0,0,3">
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="80" />
@@ -795,7 +777,7 @@
                                                         </Grid.ColumnDefinitions>
 
                                                         <!-- Type Tag -->
-                                                        <Border Grid.Column="0" Background="#181B21" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="4,2" VerticalAlignment="Center">
+                                                        <Border Grid.Column="0" Background="{StaticResource SurfaceBgBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="4,2" VerticalAlignment="Center">
                                                             <TextBlock Text="{Binding RuleType}" FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" HorizontalAlignment="Center" />
                                                         </Border>
 
@@ -805,18 +787,18 @@
                                                                 <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,6,0" />
                                                                 <TextBlock Text="{Binding StatusDescription}" FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource AccentAmberBrush}" VerticalAlignment="Center" />
                                                             </StackPanel>
-                                                            <TextBlock Text="{Binding Description}" FontSize="9.5" Foreground="{StaticResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" Margin="0,1,0,0" />
+                                                            <TextBlock Text="{Binding Description}" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" Margin="0,1,0,0" />
                                                         </StackPanel>
 
                                                         <!-- Target & Cap -->
                                                         <StackPanel Grid.Column="4" VerticalAlignment="Center">
                                                             <StackPanel Orientation="Horizontal">
                                                                 <TextBlock Text="TARGET: " FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextMutedBrush}" />
-                                                                <TextBlock Text="{Binding TargetCategory}" FontSize="9.5" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" />
+                                                                <TextBlock Text="{Binding TargetCategory}" FontSize="9" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" />
                                                             </StackPanel>
                                                             <StackPanel Orientation="Horizontal">
                                                                 <TextBlock Text="CAP: " FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextMutedBrush}" />
-                                                                <TextBlock Text="{Binding ThrottleCapKBps, StringFormat={}{0} KB/s}" FontFamily="{StaticResource MonoFont}" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource AccentAmberBrush}" />
+                                                                <TextBlock Text="{Binding ThrottleCapKBps, StringFormat={}{0} KB/s}" FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource AccentAmberBrush}" />
                                                             </StackPanel>
                                                         </StackPanel>
 
@@ -826,14 +808,14 @@
                                                                 CommandParameter="{Binding}"
                                                                 Height="20"
                                                                 Padding="6,1"
-                                                                FontSize="9.5"
+                                                                FontSize="9"
                                                                 FontFamily="{StaticResource MonoFont}"
                                                                 FontWeight="Bold">
                                                             <Button.Style>
                                                                 <Style TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
                                                                     <Style.Triggers>
                                                                         <DataTrigger Binding="{Binding IsEnabled}" Value="False">
-                                                                            <Setter Property="Background" Value="#181B21" />
+                                                                            <Setter Property="Background" Value="{StaticResource SurfaceBgBrush}" />
                                                                             <Setter Property="BorderBrush" Value="{StaticResource BorderSubtleBrush}" />
                                                                             <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
                                                                         </DataTrigger>
@@ -870,7 +852,7 @@
             <Border Grid.Column="1"
                     Width="300"
                     Visibility="{Binding IsInspectorOpen, Converter={StaticResource BoolToVis}}"
-                    Background="#14171E"
+                    Background="{StaticResource SubtleBgBrush}"
                     BorderBrush="{StaticResource BorderSubtleBrush}"
                     BorderThickness="1,0,0,0"
                     Padding="10,8">
@@ -891,18 +873,18 @@
 
                         <TextBlock Text="{Binding DisplayName, FallbackValue='No device selected'}" FontSize="13" FontWeight="Bold" TextTrimming="CharacterEllipsis" Margin="0,0,0,2" />
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                            <TextBlock Text="{Binding IpAddressText}" FontFamily="{StaticResource MonoFont}" FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" />
+                            <TextBlock Text="{Binding IpAddressText}" FontFamily="{StaticResource MonoFont}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" />
                             <TextBlock Text=" · " Foreground="{StaticResource TextMutedBrush}" />
-                            <TextBlock Text="{Binding MacAddressText}" FontFamily="{StaticResource MonoFont}" FontSize="9.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding MacAddressText}" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
                         </StackPanel>
 
                         <!-- Redirection Mode Buttons -->
-                        <Border Background="#111317" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="8,6" Margin="0,0,0,8">
+                        <Border Background="{StaticResource CanvasBgBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="8,6" Margin="0,0,0,8">
                             <StackPanel>
                                 <Grid Margin="0,0,0,4">
-                                    <TextBlock Text="REDIRECTION MODE" FontFamily="{StaticResource MonoFont}" FontSize="8.5" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
-                                    <Border Background="#181B21" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="4,1" HorizontalAlignment="Right">
-                                        <TextBlock Text="{Binding StatusBadgeText}" FontFamily="{StaticResource MonoFont}" FontSize="8.5" FontWeight="Bold" Foreground="{Binding StatusColorHex}" />
+                                    <TextBlock Text="REDIRECTION MODE" FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+                                    <Border Background="{StaticResource SurfaceBgBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="4,1" HorizontalAlignment="Right">
+                                        <TextBlock Text="{Binding StatusBadgeText}" FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{Binding StatusColorHex}" />
                                     </Border>
                                 </Grid>
                                 <Grid Margin="0,0,0,4">
@@ -911,54 +893,55 @@
                                         <ColumnDefinition Width="4" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <Button Grid.Column="0" Content="MONITOR" Command="{Binding MonitorDeviceCommand}" Style="{StaticResource PrimaryButtonStyle}" Height="20" Padding="4,1" FontSize="9.5" />
-                                    <Button Grid.Column="2" Content="BYPASS" Command="{Binding BypassDeviceCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="20" Padding="4,1" FontSize="9.5" />
+                                    <Button Grid.Column="0" Content="MONITOR" Command="{Binding MonitorDeviceCommand}" Style="{StaticResource PrimaryButtonStyle}" Height="20" Padding="4,1" FontSize="9" />
+                                    <Button Grid.Column="2" Content="BYPASS" Command="{Binding BypassDeviceCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="20" Padding="4,1" FontSize="9" />
                                 </Grid>
                                 <CheckBox Content="KILL-SWITCH (DROP ALL TRAFFIC)"
                                           IsChecked="{Binding IsBlocked, UpdateSourceTrigger=PropertyChanged}"
                                           IsEnabled="{Binding CanThrottle}"
                                           Foreground="{StaticResource AccentCrimsonBrush}"
-                                          FontSize="9.5"
+                                          FontSize="9"
                                           FontFamily="{StaticResource MonoFont}"
                                           Margin="0,2,0,0" />
                             </StackPanel>
                         </Border>
 
                         <!-- Nickname & Category -->
-                        <TextBlock Text="FRIENDLY NICKNAME" FontFamily="{StaticResource MonoFont}" FontSize="8.5" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,2" />
-                        <TextBox Text="{Binding CustomNickname, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource DarkTextBoxStyle}" Height="20" Margin="0,0,0,6" />
+                        <TextBlock Text="FRIENDLY NICKNAME" FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,2" />
+                        <TextBox Text="{Binding CustomNickname, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource DarkTextBoxStyle}" FontSize="10" Height="20" Margin="0,0,0,6" />
 
-                        <TextBlock Text="DEVICE CATEGORY" FontFamily="{StaticResource MonoFont}" FontSize="8.5" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,2" />
+                        <TextBlock Text="DEVICE CATEGORY" FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,2" />
                         <ComboBox ItemsSource="{Binding DataContext.Categories, RelativeSource={RelativeSource AncestorType=Window}}"
                                   SelectedItem="{Binding Category}"
                                   Height="22"
+                                  FontSize="10"
                                   Margin="0,0,0,8" />
 
                         <!-- Data Consumption Summary -->
-                        <Border Background="#111317" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="8,5" Margin="0,0,0,8">
+                        <Border Background="{StaticResource CanvasBgBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="8,5" Margin="0,0,0,8">
                             <StackPanel>
-                                <TextBlock Text="DATA CONSUMPTION" FontFamily="{StaticResource MonoFont}" FontSize="8.5" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,4" />
+                                <TextBlock Text="DATA CONSUMPTION" FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,4" />
                                 <Grid Margin="0,1">
                                     <TextBlock Text="SESSION:" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" />
-                                    <TextBlock Text="{Binding SessionTotalText}" FontFamily="{StaticResource MonoFont}" FontSize="9.5" FontWeight="Bold" HorizontalAlignment="Right" />
+                                    <TextBlock Text="{Binding SessionTotalText}" FontFamily="{StaticResource MonoFont}" FontSize="10" FontWeight="Bold" HorizontalAlignment="Right" />
                                 </Grid>
                                 <Grid Margin="0,1">
                                     <TextBlock Text="TODAY:" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" />
-                                    <TextBlock Text="{Binding TodayUsageText}" FontFamily="{StaticResource MonoFont}" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" HorizontalAlignment="Right" />
+                                    <TextBlock Text="{Binding TodayUsageText}" FontFamily="{StaticResource MonoFont}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" HorizontalAlignment="Right" />
                                 </Grid>
                                 <Grid Margin="0,1">
                                     <TextBlock Text="7 DAYS:" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" />
-                                    <TextBlock Text="{Binding WeekUsageText}" FontFamily="{StaticResource MonoFont}" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource AccentVioletBrush}" HorizontalAlignment="Right" />
+                                    <TextBlock Text="{Binding WeekUsageText}" FontFamily="{StaticResource MonoFont}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource AccentVioletBrush}" HorizontalAlignment="Right" />
                                 </Grid>
                                 <Grid Margin="0,1">
                                     <TextBlock Text="30 DAYS:" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" />
-                                    <TextBlock Text="{Binding MonthUsageText}" FontFamily="{StaticResource MonoFont}" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" HorizontalAlignment="Right" />
+                                    <TextBlock Text="{Binding MonthUsageText}" FontFamily="{StaticResource MonoFont}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" HorizontalAlignment="Right" />
                                 </Grid>
                             </StackPanel>
                         </Border>
 
                         <!-- Hardware Rate Limits & Quotas -->
-                        <TextBlock Text="TOKEN-BUCKET RATE LIMITS" FontFamily="{StaticResource MonoFont}" FontSize="8.5" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,2" />
+                        <TextBlock Text="TOKEN-BUCKET RATE LIMITS" FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,2" />
                         <Grid Margin="0,0,0,6">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
@@ -966,17 +949,17 @@
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="RX (KB/s)" FontFamily="{StaticResource MonoFont}" FontSize="8.5" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,2" />
-                                <TextBox Text="{Binding DownloadCapKBps, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanThrottle}" Style="{StaticResource DarkTextBoxStyle}" FontFamily="{StaticResource MonoFont}" Height="20" />
+                                <TextBlock Text="RX (KB/s)" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,2" />
+                                <TextBox Text="{Binding DownloadCapKBps, UpdateSourceTrigger=LostFocus}" KeyDown="CapTextBox_KeyDown" IsEnabled="{Binding CanThrottle}" Style="{StaticResource DarkTextBoxStyle}" FontFamily="{StaticResource MonoFont}" FontSize="10" Height="20" />
                             </StackPanel>
                             <StackPanel Grid.Column="2">
-                                <TextBlock Text="TX (KB/s)" FontFamily="{StaticResource MonoFont}" FontSize="8.5" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,2" />
-                                <TextBox Text="{Binding UploadCapKBps, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanThrottle}" Style="{StaticResource DarkTextBoxStyle}" FontFamily="{StaticResource MonoFont}" Height="20" />
+                                <TextBlock Text="TX (KB/s)" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,2" />
+                                <TextBox Text="{Binding UploadCapKBps, UpdateSourceTrigger=LostFocus}" KeyDown="CapTextBox_KeyDown" IsEnabled="{Binding CanThrottle}" Style="{StaticResource DarkTextBoxStyle}" FontFamily="{StaticResource MonoFont}" FontSize="10" Height="20" />
                             </StackPanel>
                         </Grid>
 
-                        <TextBlock Text="DAILY QUOTA (MB, 0 = UNLTD)" FontFamily="{StaticResource MonoFont}" FontSize="8.5" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,2" />
-                        <TextBox Text="{Binding DailyQuotaMB, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanThrottle}" Style="{StaticResource DarkTextBoxStyle}" FontFamily="{StaticResource MonoFont}" Height="20" Margin="0,0,0,8" />
+                        <TextBlock Text="DAILY QUOTA (MB, 0 = UNLTD)" FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,2" />
+                        <TextBox Text="{Binding DailyQuotaMB, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanThrottle}" Style="{StaticResource DarkTextBoxStyle}" FontFamily="{StaticResource MonoFont}" FontSize="10" Height="20" Margin="0,0,0,8" />
 
                         <!-- Wake-on-LAN Action -->
                         <Button Content="SEND WAKE-ON-LAN"
@@ -990,7 +973,7 @@
                                 Margin="0,0,0,8" />
 
                         <!-- Per-Device Domain Filter -->
-                        <TextBlock Text="BLOCKED DOMAINS (DNS SINKHOLE)" FontFamily="{StaticResource MonoFont}" FontSize="8.5" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,2" />
+                        <TextBlock Text="BLOCKED DOMAINS (DNS SINKHOLE)" FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,2" />
                         <Grid Margin="0,0,0,4">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
@@ -1001,7 +984,7 @@
                                      Text="{Binding DataContext.NewDomainInput, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource DarkTextBoxStyle}"
                                      Height="20"
-                                     FontSize="9.5" />
+                                     FontSize="10" />
                             <Button Grid.Column="2"
                                     Content="BLOCK"
                                     Command="{Binding DataContext.AddBlockedDomainCommand, RelativeSource={RelativeSource AncestorType=Window}}"
@@ -1015,16 +998,16 @@
                         <ItemsControl ItemsSource="{Binding BlockedDomains}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Background="#111317" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="4,2" Margin="0,0,0,2">
+                                    <Border Background="{StaticResource CanvasBgBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="4,2" Margin="0,0,0,2">
                                         <Grid>
-                                            <TextBlock Text="{Binding}" FontFamily="{StaticResource MonoFont}" FontSize="9.5" VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding}" FontFamily="{StaticResource MonoFont}" FontSize="10" VerticalAlignment="Center" />
                                             <Button Content="✕"
                                                     Command="{Binding DataContext.RemoveBlockedDomainCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                     CommandParameter="{Binding}"
                                                     Style="{StaticResource SecondaryButtonStyle}"
                                                     Height="16"
                                                     Padding="4,0"
-                                                    FontSize="8"
+                                                    FontSize="9"
                                                     FontFamily="{StaticResource MonoFont}"
                                                     HorizontalAlignment="Right" />
                                         </Grid>
@@ -1041,7 +1024,7 @@
              ROW 3: BOTTOM HARDWARE STATUS BAR (HEIGHT 24)
              ========================================================================= -->
         <Border Grid.Row="3"
-                Background="#111317"
+                Background="{StaticResource CanvasBgBrush}"
                 BorderBrush="{StaticResource BorderSubtleBrush}"
                 BorderThickness="0,1,0,0"
                 Padding="8,0">
@@ -1053,6 +1036,11 @@
                                FontSize="10"
                                Foreground="{StaticResource TextSecondaryBrush}"
                                VerticalAlignment="Center" />
+                    <Rectangle Width="1" Height="12" Fill="{StaticResource BorderSubtleBrush}" Margin="8,0" VerticalAlignment="Center" />
+                    <TextBlock Text="PK " FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding PeakDownloadText}" FontFamily="{StaticResource MonoFont}" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <TextBlock Text="SES " FontFamily="{StaticResource MonoFont}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding SessionTotalText}" FontFamily="{StaticResource MonoFont}" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
