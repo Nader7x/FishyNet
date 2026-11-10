@@ -24,6 +24,23 @@ High-performance LAN bandwidth shaper, real-time traffic analyzer, and historica
 ## Build & Test
 
 ```powershell
+# Build solution
 dotnet build FishyNet.sln -c Release
+
+# Run automated tests
 dotnet test FishyNet.sln -c Release
 ```
+
+## Build MSI Installer
+
+FishyNet includes a WiX v7-based MSI installer pipeline that produces a 64-bit per-machine installer with Start Menu and Desktop shortcuts, automated single-file harvesting, and standard Windows Installer UI dialogs.
+
+```powershell
+# Build self-contained release and compile MSI package to artifacts/
+pwsh .\build-installer.ps1 -Configuration Release -OutputDir artifacts
+```
+
+## CI/CD & Releases
+
+- **Continuous Integration (`.github/workflows/ci.yml`)**: Automatically triggers on pushes and pull requests to `main` to build the solution, execute tests, and validate the WiX MSI installer package.
+- **GitHub Releases (`.github/workflows/release.yml`)**: Automatically publishes full releases on GitHub when a tag matching `v*` (e.g. `v3.2.0`) is pushed, or via manual `workflow_dispatch`. Generates both the standalone MSI installer and a portable zip archive accompanied by SHA-256 checksums.

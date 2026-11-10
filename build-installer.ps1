@@ -32,6 +32,7 @@ dotnet publish (Join-Path $root "FishyNet\FishyNet.csproj") `
     -r win-x64 `
     --self-contained `
     -p:PublishSingleFile=true `
+    -p:DebugType=none `
     -p:Version=$Version `
     -o $publishDir
 
@@ -39,21 +40,36 @@ if ($LASTEXITCODE -ne 0) {
     throw "dotnet publish failed with exit code $LASTEXITCODE"
 }
 
-# 2. Ensure WiX CLI is available and accepted
+# 2. Ensure .dotnet/tools is in PATH and WiX CLI is available
 Write-Host "`n[2/5] Checking WiX toolset..." -ForegroundColor Yellow
+$dotnetToolsDir = Join-Path $env:USERPROFILE ".dotnet\tools"
+if (($env:PATH -split ';') -notcontains $dotnetToolsDir) {
+    $env:PATH = "$dotnetToolsDir;$env:PATH"
+}
+
 $wixCmd = Get-Command wix -ErrorAction SilentlyContinue
 if (-not $wixCmd) {
     Write-Host "WiX CLI not found. Installing dotnet tool 'wix' globally..." -ForegroundColor Cyan
     dotnet tool install -g wix
+    if (($env:PATH -split ';') -notcontains $dotnetToolsDir) {
+        $env:PATH = "$dotnetToolsDir;$env:PATH"
+    }
+    $wixCmd = Get-Command wix -ErrorAction SilentlyContinue
 }
+
 # Accept WiX EULA if using WiX v7+
 try {
     & wix eula accept wix7 2>$null
+    $global:LASTEXITCODE = 0
 } catch {}
 
 # 3. Ensure WixToolset.UI.wixext is installed
 Write-Host "`n[3/5] Verifying WiX UI extension..." -ForegroundColor Yellow
 & wix extension add -g WixToolset.UI.wixext
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "WiX extension add returned $LASTEXITCODE (extension may already be installed)." -ForegroundColor Gray
+    $global:LASTEXITCODE = 0
+}
 
 # 4. Build MSI package
 Write-Host "`n[4/5] Building MSI package with WiX..." -ForegroundColor Yellow

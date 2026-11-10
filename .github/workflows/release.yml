@@ -50,6 +50,7 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+          dotnet-quality: 'preview'
 
       - name: Run Test Suite
         run: dotnet test FishyNet.sln -c Release --verbosity normal
@@ -74,9 +75,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           name: "FishyNet v${{ steps.get_version.outputs.version }}"
-          tag_name: ${{ github.ref_name }}
-          draft: ${{ inputs.draft || false }}
-          prerelease: ${{ inputs.prerelease || false }}
+          tag_name: "v${{ steps.get_version.outputs.version }}"
+          draft: ${{ github.event_name == 'workflow_dispatch' && inputs.draft || false }}
+          prerelease: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease || false }}
           generate_release_notes: true
           files: |
             artifacts/*.msi

@@ -23,6 +23,7 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+          dotnet-quality: 'preview'
 
       - name: Restore Dependencies
         run: dotnet restore FishyNet.sln
@@ -34,7 +35,8 @@ jobs:
         run: dotnet test FishyNet.sln -c Release --no-build --verbosity normal --logger "trx;LogFileName=test_results.trx"
 
       - name: Build MSI Installer
-        run: powershell -ExecutionPolicy Bypass -File .\build-installer.ps1 -Configuration Release -OutputDir artifacts
+        shell: pwsh
+        run: .\build-installer.ps1 -Configuration Release -OutputDir artifacts
 
       - name: Upload Test Results
         if: always()
