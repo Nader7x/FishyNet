@@ -1,3 +1,5 @@
+using System.Collections;
+using System.Collections.Specialized;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Input;
@@ -46,6 +48,8 @@ public sealed class NetworkTopologyControl : FrameworkElement
 
     private readonly List<NodeLayoutInfo> _nodeLayouts = [];
     private readonly List<DeviceViewModel> _orbitingDevices = [];
+    private DeviceViewModel? _gatewayVm;
+    private bool _isGwHovered;
     private double _animationTime;
     private long _lastFrameTicks;
     private bool _isRenderingSubscribed;
@@ -72,15 +76,15 @@ public sealed class NetworkTopologyControl : FrameworkElement
 
     static NetworkTopologyControl()
     {
-        RadarBgBrush = new SolidColorBrush(Color.FromArgb(160, 7, 10, 16));
+        RadarBgBrush = new SolidColorBrush(Color.FromArgb(140, 16, 17, 22));
         RadarBgBrush.Freeze();
 
-        var gridBrush = new SolidColorBrush(Color.FromArgb(35, 56, 189, 248));
+        var gridBrush = new SolidColorBrush(Color.FromArgb(30, 148, 163, 184));
         gridBrush.Freeze();
         RadarGridPen = new Pen(gridBrush, 1.0) { DashStyle = new DashStyle([4, 4], 0) };
         RadarGridPen.Freeze();
 
-        var crossBrush = new SolidColorBrush(Color.FromArgb(22, 148, 163, 184));
+        var crossBrush = new SolidColorBrush(Color.FromArgb(18, 148, 163, 184));
         crossBrush.Freeze();
         RadarCrosshairPen = new Pen(crossBrush, 1.0);
         RadarCrosshairPen.Freeze();
@@ -94,11 +98,11 @@ public sealed class NetworkTopologyControl : FrameworkElement
         GatewayGlowPen = new Pen(gwGlow, 5.0);
         GatewayGlowPen.Freeze();
 
-        var devFill = new SolidColorBrush(Color.FromArgb(230, 20, 29, 45));
+        var devFill = new SolidColorBrush(Color.FromArgb(235, 25, 27, 34));
         devFill.Freeze();
         DeviceFillBrush = devFill;
 
-        var devSel = new SolidColorBrush(Color.FromArgb(245, 30, 48, 75));
+        var devSel = new SolidColorBrush(Color.FromArgb(250, 38, 41, 52));
         devSel.Freeze();
         DeviceSelectedBrush = devSel;
 
@@ -178,9 +182,9 @@ public sealed class NetworkTopologyControl : FrameworkElement
     public static readonly DependencyProperty DevicesProperty =
         DependencyProperty.Register(
             nameof(Devices),
-            typeof(IEnumerable<DeviceViewModel>),
+            typeof(IEnumerable),
             typeof(NetworkTopologyControl),
-            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
+            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, OnDevicesChanged));
 
     public static readonly DependencyProperty SelectedDeviceProperty =
         DependencyProperty.Register(
@@ -189,9 +193,9 @@ public sealed class NetworkTopologyControl : FrameworkElement
             typeof(NetworkTopologyControl),
             new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault | FrameworkPropertyMetadataOptions.AffectsRender));
 
-    public IEnumerable<DeviceViewModel>? Devices
+    public IEnumerable? Devices
     {
-        get => (IEnumerable<DeviceViewModel>?)GetValue(DevicesProperty);
+        get => (IEnumerable?)GetValue(DevicesProperty);
         set => SetValue(DevicesProperty, value);
     }
 
@@ -199,6 +203,29 @@ public sealed class NetworkTopologyControl : FrameworkElement
     {
         get => (DeviceViewModel?)GetValue(SelectedDeviceProperty);
         set => SetValue(SelectedDeviceProperty, value);
+    }
+
+    private static void OnDevicesChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is NetworkTopologyControl control)
+        {
+            if (e.OldValue is INotifyCollectionChanged oldNcc)
+            {
+                oldNcc.CollectionChanged -= control.OnDevicesCollectionChanged;
+            }
+
+            if (e.NewValue is INotifyCollectionChanged newNcc)
+            {
+                newNcc.CollectionChanged += control.OnDevicesCollectionChanged;
+            }
+
+            control.InvalidateVisual();
+        }
+    }
+
+    private void OnDevicesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        Dispatcher.InvokeAsync(InvalidateVisual, System.Windows.Threading.DispatcherPriority.Render);
     }
 
     public NetworkTopologyControl()
@@ -273,12 +300,18 @@ public sealed class NetworkTopologyControl : FrameworkElement
     {
         base.OnMouseMove(e);
         Point pos = e.GetPosition(this);
+        Point center = new(ActualWidth / 2.0, ActualHeight / 2.0);
+        double dx = pos.X - center.X;
+        double dy = pos.Y - center.Y;
+        bool isGwHovered = (dx * dx) + (dy * dy) <= (28.0 * 28.0);
+
         NodeLayoutInfo? hit = HitTestNode(pos);
 
-        if (hit != _hoveredNode)
+        if (hit != _hoveredNode || isGwHovered != _isGwHovered)
         {
             _hoveredNode = hit;
-            Cursor = hit != null ? Cursors.Hand : Cursors.Arrow;
+            _isGwHovered = isGwHovered;
+            Cursor = (hit != null || isGwHovered) ? Cursors.Hand : Cursors.Arrow;
             InvalidateVisual();
         }
     }
@@ -287,8 +320,21 @@ public sealed class NetworkTopologyControl : FrameworkElement
     {
         base.OnMouseLeftButtonDown(e);
         Point pos = e.GetPosition(this);
-        NodeLayoutInfo? hit = HitTestNode(pos);
+        Point center = new(ActualWidth / 2.0, ActualHeight / 2.0);
+        double dx = pos.X - center.X;
+        double dy = pos.Y - center.Y;
 
+        if ((dx * dx) + (dy * dy) <= (28.0 * 28.0))
+        {
+            if (_gatewayVm != null)
+            {
+                SelectedDevice = _gatewayVm;
+            }
+            e.Handled = true;
+            return;
+        }
+
+        NodeLayoutInfo? hit = HitTestNode(pos);
         if (hit != null)
         {
             SelectedDevice = hit.ViewModel;
@@ -348,14 +394,22 @@ public sealed class NetworkTopologyControl : FrameworkElement
 
         // 2. Identify Gateway and Orbiting Devices
         _orbitingDevices.Clear();
+        _gatewayVm = null;
 
         if (Devices != null)
         {
-            foreach (DeviceViewModel vm in Devices)
+            foreach (object item in Devices)
             {
-                if (!vm.IsGateway)
+                if (item is DeviceViewModel vm)
                 {
-                    _orbitingDevices.Add(vm);
+                    if (vm.IsGateway)
+                    {
+                        _gatewayVm = vm;
+                    }
+                    else
+                    {
+                        _orbitingDevices.Add(vm);
+                    }
                 }
             }
         }

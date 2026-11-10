@@ -14,7 +14,7 @@
         SnapsToDevicePixels="True"
         UseLayoutRounding="True">
 
-    <Border Background="#E6070A10"
+    <Border Background="#E613151C"
             BorderBrush="{StaticResource BorderSubtleBrush}"
             BorderThickness="1"
             CornerRadius="6"

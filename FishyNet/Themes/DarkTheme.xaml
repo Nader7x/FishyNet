@@ -2,14 +2,14 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!-- =========================================================================
-         1. FROSTED OBSIDIAN GLASS PALETTE & SPECULAR RIMS
+         1. FROSTED GRAPHITE GLASS PALETTE & SPECULAR RIMS
          ========================================================================= -->
-    <Color x:Key="CanvasBgColor">#070A10</Color>
-    <Color x:Key="SurfaceBgColor">#CC0E1420</Color>
-    <Color x:Key="ElevatedBgColor">#D9141D2D</Color>
-    <Color x:Key="HoverBgColor">#E61C283D</Color>
-    <Color x:Key="BorderColor">#243246</Color>
-    <Color x:Key="BorderActiveColor">#364B68</Color>
+    <Color x:Key="CanvasBgColor">#0F1115</Color>
+    <Color x:Key="SurfaceBgColor">#D016181F</Color>
+    <Color x:Key="ElevatedBgColor">#D91E2028</Color>
+    <Color x:Key="HoverBgColor">#E6292C36</Color>
+    <Color x:Key="BorderColor">#2A2D37</Color>
+    <Color x:Key="BorderActiveColor">#404452</Color>
 
     <Color x:Key="TextPrimaryColor">#F8FAFC</Color>
     <Color x:Key="TextSecondaryColor">#94A3B8</Color>
@@ -29,22 +29,22 @@
 
     <!-- Frosted Glass Surface Brush (Diagonal Translucent Sheen) -->
     <LinearGradientBrush x:Key="SurfaceBgBrush" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#D8121A28" Offset="0.0" />
-        <GradientStop Color="#C40D131E" Offset="0.55" />
-        <GradientStop Color="#D20F1724" Offset="1.0" />
+        <GradientStop Color="#D81C1E26" Offset="0.0" />
+        <GradientStop Color="#C414161C" Offset="0.55" />
+        <GradientStop Color="#D2171920" Offset="1.0" />
     </LinearGradientBrush>
 
     <!-- Frosted Glass Card / KPI Tile Brush -->
     <LinearGradientBrush x:Key="GlassCardBrush" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#E0162032" Offset="0.0" />
-        <GradientStop Color="#C80E1522" Offset="1.0" />
+        <GradientStop Color="#D820232B" Offset="0.0" />
+        <GradientStop Color="#BF16181F" Offset="1.0" />
     </LinearGradientBrush>
 
     <!-- Specular Frosted Rim Border (Top-left light catch -> subtle bottom-right edge) -->
     <LinearGradientBrush x:Key="BorderSubtleBrush" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#3D94A3B8" Offset="0.0" />
-        <GradientStop Color="#1F475569" Offset="0.45" />
-        <GradientStop Color="#2938BDF8" Offset="1.0" />
+        <GradientStop Color="#40A1A1AA" Offset="0.0" />
+        <GradientStop Color="#2052525B" Offset="0.5" />
+        <GradientStop Color="#3071717A" Offset="1.0" />
     </LinearGradientBrush>
 
     <!-- Typography Brushes -->

@@ -8,7 +8,7 @@
         Height="870"
         MinWidth="1160"
         MinHeight="680"
-        Background="#CC070A10"
+        Background="#B8111216"
         Foreground="{StaticResource TextPrimaryBrush}"
         FontFamily="{StaticResource SansFont}"
         SnapsToDevicePixels="True"
@@ -20,12 +20,12 @@
     </WindowChrome.WindowChrome>
 
     <Grid>
-        <!-- Subtle Ambient Radial Frost Glow Background -->
+        <!-- Frosted Glass Specular Ambient Backdrop -->
         <Grid.Background>
             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                <GradientStop Color="#E6070A10" Offset="0.0" />
-                <GradientStop Color="#D90B111C" Offset="0.45" />
-                <GradientStop Color="#E6070A11" Offset="1.0" />
+                <GradientStop Color="#D813151B" Offset="0.0" />
+                <GradientStop Color="#C016181F" Offset="0.45" />
+                <GradientStop Color="#D8121318" Offset="1.0" />
             </LinearGradientBrush>
         </Grid.Background>
 
@@ -64,16 +64,11 @@
 
                 <!-- Brand Title -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Background="#121C2C" BorderBrush="#263B59" BorderThickness="1" CornerRadius="3" Padding="3" Margin="0,0,9,0">
+                    <Border Background="#1C1E25" BorderBrush="#2F323D" BorderThickness="1" CornerRadius="3" Padding="3" Margin="0,0,9,0">
                         <Image x:Name="BrandLogoImage" Width="24" Height="24" RenderOptions.BitmapScalingMode="HighQuality" />
                     </Border>
                     <StackPanel VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="FISHYNET" FontSize="13.5" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
-                            <Border Background="#142E28" BorderBrush="#10B981" BorderThickness="1" CornerRadius="2" Padding="4,1" Margin="6,0,0,0" VerticalAlignment="Center">
-                                <TextBlock Text="v3.2" FontFamily="{StaticResource MonoFont}" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" />
-                            </Border>
-                        </StackPanel>
+                        <TextBlock Text="FISHYNET" FontSize="13.5" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
                         <TextBlock Text="Packet Shaper &amp; LAN Telemetry" FontSize="9.5" Foreground="{StaticResource TextSecondaryBrush}" />
                     </StackPanel>
                 </StackPanel>
@@ -99,8 +94,8 @@
 
                 <!-- Live LAN Speed Ticker -->
                 <Border Grid.Column="4"
-                        Background="#101826"
-                        BorderBrush="#25354C"
+                        Background="#161820"
+                        BorderBrush="#2C2F3A"
                         BorderThickness="1"
                         CornerRadius="3"
                         Padding="10,5"
@@ -215,7 +210,7 @@
 
         <!-- 2. TOP FROSTED TELEMETRY STRIP -->
         <Border Grid.Row="1"
-                Background="#990A0F18"
+                Background="#8813151C"
                 BorderBrush="{StaticResource BorderSubtleBrush}"
                 BorderThickness="0,0,0,1"
                 Padding="16,9">
@@ -360,7 +355,7 @@
                                          ToolTip="Search by Device Name, IP, MAC Address, or OUI Manufacturer" />
 
                                 <!-- View Mode Switcher: Table ↔ Bento ↔ Radar -->
-                                <Border Grid.Column="2" Background="#0F1724" BorderBrush="#24334A" BorderThickness="1" CornerRadius="3" Padding="2">
+                                <Border Grid.Column="2" Background="#171920" BorderBrush="#2A2D36" BorderThickness="1" CornerRadius="3" Padding="2">
                                     <StackPanel Orientation="Horizontal">
                                         <Button Content="▤ Table"
                                                 Command="{Binding SetViewModeCommand}" CommandParameter="Table"
@@ -369,7 +364,7 @@
                                                 <Style TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsTableView}" Value="True">
-                                                            <Setter Property="Background" Value="#1E2E44" />
+                                                            <Setter Property="Background" Value="#242833" />
                                                             <Setter Property="BorderBrush" Value="#38BDF8" />
                                                             <Setter Property="Foreground" Value="#38BDF8" />
                                                         </DataTrigger>
@@ -384,7 +379,7 @@
                                                 <Style TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsBentoView}" Value="True">
-                                                            <Setter Property="Background" Value="#1E2E44" />
+                                                            <Setter Property="Background" Value="#242833" />
                                                             <Setter Property="BorderBrush" Value="#38BDF8" />
                                                             <Setter Property="Foreground" Value="#38BDF8" />
                                                         </DataTrigger>
@@ -399,7 +394,7 @@
                                                 <Style TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsTopologyView}" Value="True">
-                                                            <Setter Property="Background" Value="#1E2E44" />
+                                                            <Setter Property="Background" Value="#242833" />
                                                             <Setter Property="BorderBrush" Value="#38BDF8" />
                                                             <Setter Property="Foreground" Value="#38BDF8" />
                                                         </DataTrigger>
@@ -831,7 +826,7 @@
                                     VerticalAlignment="Top"
                                     Width="300"
                                     Margin="0,16,16,0"
-                                    Background="#E6070E1A"
+                                    Background="#E615171F"
                                     BorderBrush="{StaticResource BorderSubtleBrush}"
                                     BorderThickness="1"
                                     CornerRadius="4"
