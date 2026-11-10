@@ -25,13 +25,17 @@ $setupDir = Join-Path $root "FishyNet.Setup"
 $msiFileName = "FishyNet-$Version-win-x64.msi"
 $msiPath = Join-Path $artifactsPath $msiFileName
 
-# 1. Publish standalone self-contained single-file win-x64 binaries
+# 1. Publish standalone self-contained win-x64 binaries (complete with all WPF native runtime libraries)
 Write-Host "`n[1/5] Publishing FishyNet (win-x64, self-contained)..." -ForegroundColor Yellow
+if (Test-Path $publishDir) {
+    Remove-Item -Recurse -Force $publishDir
+}
+
 dotnet publish (Join-Path $root "FishyNet\FishyNet.csproj") `
     -c $Configuration `
     -r win-x64 `
     --self-contained `
-    -p:PublishSingleFile=true `
+    -p:PublishSingleFile=false `
     -p:DebugType=none `
     -p:Version=$Version `
     -o $publishDir

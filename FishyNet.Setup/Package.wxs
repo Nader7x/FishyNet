@@ -15,14 +15,19 @@
     <Property Id="ARPHELPLINK" Value="https://github.com/FishyNet/FishyNet" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
-      <Directory Id="INSTALLFOLDER" Name="FishyNet">
-        <Component Id="MainExecutable" Guid="31CA79A9-C591-4D78-9B43-4DF89E0BA031">
-          <File Id="FishyNetExecutable"
-                Source="$(var.PublishDir)\FishyNet.exe"
-                KeyPath="yes" />
-        </Component>
-      </Directory>
+      <Directory Id="INSTALLFOLDER" Name="FishyNet" />
     </StandardDirectory>
+
+    <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
+      <Component Id="MainExecutable" Guid="31CA79A9-C591-4D78-9B43-4DF89E0BA031">
+        <File Id="FishyNetExecutable"
+              Source="$(var.PublishDir)\FishyNet.exe"
+              KeyPath="yes" />
+      </Component>
+      <Files Include="$(var.PublishDir)\**">
+        <Exclude Files="$(var.PublishDir)\FishyNet.exe" />
+      </Files>
+    </ComponentGroup>
 
     <StandardDirectory Id="ProgramMenuFolder">
       <Directory Id="ApplicationProgramsFolder" Name="FishyNet">
@@ -52,7 +57,7 @@
     </StandardDirectory>
 
     <Feature Id="MainFeature" Title="FishyNet Application" Level="1">
-      <ComponentRef Id="MainExecutable" />
+      <ComponentGroupRef Id="AppFiles" />
       <ComponentRef Id="ApplicationShortcut" />
       <ComponentRef Id="DesktopShortcutComponent" />
     </Feature>

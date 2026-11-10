@@ -1,4 +1,5 @@
 using System.IO;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -8,6 +9,49 @@ namespace FishyNet.Core.Native;
 internal static unsafe partial class WpcapNative
 {
     public const int PCAP_ERRBUF_SIZE = 256;
+
+    static WpcapNative()
+    {
+        NativeLibrary.SetDllImportResolver(typeof(WpcapNative).Assembly, ResolvePcapLibraries);
+    }
+
+    private static nint ResolvePcapLibraries(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
+    {
+        if (libraryName.Equals("wpcap.dll", StringComparison.OrdinalIgnoreCase) ||
+            libraryName.Equals("wpcap", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                string systemDir = Environment.GetFolderPath(Environment.SpecialFolder.System);
+
+                // 1. Try Npcap directory: C:\Windows\System32\Npcap\wpcap.dll
+                string npcapPath = Path.Combine(systemDir, "Npcap", "wpcap.dll");
+                if (File.Exists(npcapPath) && NativeLibrary.TryLoad(npcapPath, out nint npcapHandle))
+                {
+                    return npcapHandle;
+                }
+
+                // 2. Try System32 directory: C:\Windows\System32\wpcap.dll (WinPcap / Npcap winpcap-mode)
+                string sys32Path = Path.Combine(systemDir, "wpcap.dll");
+                if (File.Exists(sys32Path) && NativeLibrary.TryLoad(sys32Path, out nint sys32Handle))
+                {
+                    return sys32Handle;
+                }
+
+                // 3. Fallback to default load
+                if (NativeLibrary.TryLoad(libraryName, assembly, searchPath, out nint defHandle))
+                {
+                    return defHandle;
+                }
+            }
+            catch
+            {
+                // Fall back to default resolution
+            }
+        }
+
+        return nint.Zero;
+    }
 
     [StructLayout(LayoutKind.Sequential)]
     public struct PcapPkthdr
@@ -24,28 +68,6 @@ internal static unsafe partial class WpcapNative
         public uint BfLen;
         public nint BfInsns;
     }
-
-    [ModuleInitializer]
-    internal static void InitializeNpcapSearchPath()
-    {
-        try
-        {
-            string systemDir = Environment.GetFolderPath(Environment.SpecialFolder.System);
-            string npcapDir = Path.Combine(systemDir, "Npcap");
-            if (Directory.Exists(npcapDir))
-            {
-                SetDllDirectoryW(npcapDir);
-            }
-        }
-        catch
-        {
-            // Ignore in restricted environments
-        }
-    }
-
-    [LibraryImport("kernel32.dll", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool SetDllDirectoryW(string lpPathName);
 
     [LibraryImport("wpcap.dll", StringMarshalling = StringMarshalling.Utf8)]
     public static partial nint pcap_open_live(string device, int snaplen, int promisc, int to_ms, byte* errbuf);
