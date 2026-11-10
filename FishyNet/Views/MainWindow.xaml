@@ -62,7 +62,7 @@
                         <Image x:Name="BrandLogoImage" Width="16" Height="16" RenderOptions.BitmapScalingMode="NearestNeighbor" />
                     </Border>
                     <TextBlock Text="FISHYNET" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
-                    <TextBlock Text="v3.2.0" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" Margin="5,1,0,0" />
+                    <TextBlock Text="v3.3.0" FontFamily="{StaticResource MonoFont}" FontSize="9" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" Margin="5,1,0,0" />
                 </StackPanel>
 
                 <!-- Hardware NIC Selector -->
