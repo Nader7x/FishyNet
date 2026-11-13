@@ -671,19 +671,26 @@
                                               AutoGenerateColumns="False"
                                               IsReadOnly="False"
                                               RowHeight="42">
-                                        <DataGrid.ContextMenu>
-                                            <ContextMenu>
+                                        <DataGrid.Resources>
+                                            <ContextMenu x:Key="DeviceRowContextMenu" x:Shared="False">
                                                 <MenuItem Header="Toggle Monitored / Bypassed State" Command="{Binding ToggleMonitoredCommand}" FontWeight="Bold" />
                                                 <MenuItem Header="Set Monitored (Redirect via Npcap)" Command="{Binding MonitorDeviceCommand}" />
                                                 <MenuItem Header="Set Bypassed (Direct to Gateway)" Command="{Binding BypassDeviceCommand}" />
                                                 <Separator />
                                                 <MenuItem Header="Clear Caps &amp; Restore Full Speed" Command="{Binding ClearCapsCommand}" />
-                                                <MenuItem Header="Send Wake-on-LAN (WoL) Packet" Command="{Binding DataContext.WakeSelectedDeviceCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                <MenuItem Header="Send Wake-on-LAN (WoL) Packet"
+                                                          Command="{Binding PlacementTarget.Tag.WakeSelectedDeviceCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                                 <Separator />
                                                 <MenuItem Header="Copy IPv4 Address" Command="{Binding CopyIpCommand}" />
                                                 <MenuItem Header="Copy MAC Address" Command="{Binding CopyMacCommand}" />
                                             </ContextMenu>
-                                        </DataGrid.ContextMenu>
+                                        </DataGrid.Resources>
+                                        <DataGrid.RowStyle>
+                                            <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                                                <Setter Property="Tag" Value="{Binding DataContext, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
+                                                <Setter Property="ContextMenu" Value="{DynamicResource DeviceRowContextMenu}" />
+                                            </Style>
+                                        </DataGrid.RowStyle>
 
                                         <DataGrid.Columns>
                                             <!-- Multi-select Checkbox Column -->
@@ -1189,6 +1196,17 @@
                                             Command="{Binding BatchBlockCommand}"
                                             Margin="0,0,4,0"
                                             Content="Block" />
+                                    <Button Command="{Binding BatchUnblockCommand}"
+                                            Margin="0,0,4,0"
+                                            Content="Unblock">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource GlassChipButtonStyle}">
+                                                <Setter Property="Background" Value="{DynamicResource HealthySurfaceBrush}" />
+                                                <Setter Property="Foreground" Value="{DynamicResource HealthyAccentBrush}" />
+                                                <Setter Property="BorderBrush" Value="{DynamicResource HealthyAccentBrush}" />
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
                                     <Button Style="{StaticResource GlassChipButtonStyle}"
                                             Command="{Binding BatchClearCapsCommand}"
                                             Margin="0,0,4,0"
