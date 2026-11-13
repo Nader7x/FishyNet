@@ -1,9 +1,31 @@
 using System.Diagnostics;
 using System.Net.NetworkInformation;
+using System.Runtime.CompilerServices;
 using FishyNet.Core.Native;
 using FishyNet.Core.Packets;
 
 namespace FishyNet.Core;
+
+public readonly record struct PacketFlowObservation(
+    ProtocolKind Protocol,
+    byte TransportProtocol,
+    Ipv4Address LocalIp,
+    Ipv4Address RemoteIp,
+    ushort LocalPort,
+    ushort RemotePort,
+    int ByteCount,
+    bool IsOutbound,
+    bool IsLocalHost,
+    Ipv4Address DeviceIp,
+    MacAddress DeviceMac);
+
+public interface IPacketTelemetryObserver
+{
+    void OnPacketFlow(in PacketFlowObservation flow);
+    void OnTlsSniObserved(in PacketFlowObservation flow, string serverName);
+    void OnHttpHostObserved(in PacketFlowObservation flow, string host);
+    void OnDnsMappingsObserved(in PacketFlowObservation flow, ReadOnlySpan<DnsIpMapping> mappings);
+}
 
 public sealed record NetworkAdapterInfo(
     string Id,
@@ -26,23 +48,32 @@ public sealed class CaptureEngine : IDisposable
     private NetworkAdapterInfo? _adapter;
 
     private nint _arpHandle;
-    private nint _redirectHandle;
+    private nint _ipHandle;
     private readonly object _handleLock = new();
+    private readonly object _observerLock = new();
+
+    private volatile IPacketTelemetryObserver[] _telemetryObservers = [];
+
+    [ThreadStatic]
+    private static DnsIpMapping[]? t_dnsMappingScratch;
 
     private CancellationTokenSource? _arpListenerCts;
-    private CancellationTokenSource? _redirectorCts;
+    private CancellationTokenSource? _ipCaptureCts;
+    private CancellationTokenSource? _spoofCts;
     private CancellationTokenSource? _scanCts;
 
     private Task? _arpListenerTask;
-    private Task? _redirectorTask;
+    private Task? _ipCaptureTask;
     private Task? _spoofLoopTask;
 
+    private volatile bool _isPassiveMonitoring;
     private volatile bool _isRedirecting;
     private volatile bool _isScanning;
     private bool _disposed;
 
     public DeviceRegistry Registry => _registry;
     public NetworkAdapterInfo? ActiveAdapter => _adapter;
+    public bool IsPassiveMonitoring => _isPassiveMonitoring;
     public bool IsRedirecting => _isRedirecting;
     public bool IsScanning => _isScanning;
 
@@ -51,6 +82,49 @@ public sealed class CaptureEngine : IDisposable
     public CaptureEngine(DeviceRegistry registry)
     {
         _registry = registry;
+    }
+
+    public void RegisterTelemetryObserver(IPacketTelemetryObserver observer)
+    {
+        ArgumentNullException.ThrowIfNull(observer);
+        lock (_observerLock)
+        {
+            IPacketTelemetryObserver[] current = _telemetryObservers;
+            for (int i = 0; i < current.Length; i++)
+            {
+                if (ReferenceEquals(current[i], observer))
+                {
+                    return;
+                }
+            }
+
+            var next = new IPacketTelemetryObserver[current.Length + 1];
+            Array.Copy(current, next, current.Length);
+            next[current.Length] = observer;
+            _telemetryObservers = next;
+        }
+    }
+
+    public void UnregisterTelemetryObserver(IPacketTelemetryObserver observer)
+    {
+        if (observer is null) return;
+        lock (_observerLock)
+        {
+            IPacketTelemetryObserver[] current = _telemetryObservers;
+            int idx = Array.IndexOf(current, observer);
+            if (idx < 0) return;
+
+            if (current.Length == 1)
+            {
+                _telemetryObservers = [];
+                return;
+            }
+
+            var next = new IPacketTelemetryObserver[current.Length - 1];
+            if (idx > 0) Array.Copy(current, 0, next, 0, idx);
+            if (idx < current.Length - 1) Array.Copy(current, idx + 1, next, idx, current.Length - idx - 1);
+            _telemetryObservers = next;
+        }
     }
 
     public static IReadOnlyList<NetworkAdapterInfo> DiscoverSuitableAdapters()
@@ -172,8 +246,50 @@ public sealed class CaptureEngine : IDisposable
 
         // Immediately probe the router MAC
         SendArpWhoHas(adapter.GatewayIp);
+
+        // Start always-on passive telemetry monitoring on the bound adapter
+        if (!StartPassiveMonitor(out string? passiveErr) && !string.IsNullOrWhiteSpace(passiveErr))
+        {
+            StatusLog?.Invoke($"Passive app/web monitor inactive: {passiveErr}");
+        }
+
         StatusLog?.Invoke($"Bound to {adapter.Description} ({adapter.LocalIp}, GW {adapter.GatewayIp})");
         return true;
+    }
+
+    public bool StartPassiveMonitor(out string? error)
+    {
+        error = null;
+        if (_adapter is null)
+        {
+            error = "No network adapter selected.";
+            return false;
+        }
+
+        if (_isPassiveMonitoring && _ipHandle != nint.Zero)
+        {
+            return true;
+        }
+
+        if (!EnsureIpCaptureRunning(out error))
+        {
+            return false;
+        }
+
+        _isPassiveMonitoring = true;
+        StatusLog?.Invoke("Passive app & website telemetry monitor active.");
+        return true;
+    }
+
+    public void StopPassiveMonitor()
+    {
+        if (!_isPassiveMonitoring) return;
+        _isPassiveMonitoring = false;
+
+        if (!_isRedirecting)
+        {
+            StopIpCaptureLoop();
+        }
     }
 
     public void SendArpWhoHas(Ipv4Address targetIp)
@@ -262,37 +378,18 @@ public sealed class CaptureEngine : IDisposable
             SendArpWhoHas(_adapter.GatewayIp);
         }
 
-        lock (_handleLock)
+        if (!EnsureIpCaptureRunning(out error))
         {
-            if (_redirectHandle == nint.Zero)
-            {
-                _redirectHandle = WpcapNative.OpenLiveDevice(_adapter.Id, 65535, 1, 1, out error);
-                if (_redirectHandle == nint.Zero)
-                {
-                    return false;
-                }
-
-                if (!WpcapNative.SetBpfFilter(_redirectHandle, "ip"))
-                {
-                    error = "Failed to compile BPF 'ip' filter on adapter.";
-                    WpcapNative.pcap_close(_redirectHandle);
-                    _redirectHandle = nint.Zero;
-                    return false;
-                }
-            }
+            return false;
         }
 
         _isRedirecting = true;
-        _redirectorCts = new CancellationTokenSource();
-        CancellationToken token = _redirectorCts.Token;
+        _spoofCts?.Cancel();
+        _spoofCts?.Dispose();
+        _spoofCts = new CancellationTokenSource();
+        CancellationToken spoofToken = _spoofCts.Token;
 
-        _redirectorTask = Task.Factory.StartNew(
-            () => RunPacketRedirectorLoop(token),
-            token,
-            TaskCreationOptions.LongRunning,
-            TaskScheduler.Default);
-
-        _spoofLoopTask = Task.Run(() => RunPeriodicSpoofLoopAsync(token), token);
+        _spoofLoopTask = Task.Run(() => RunPeriodicSpoofLoopAsync(spoofToken), spoofToken);
 
         StatusLog?.Invoke("Active packet redirection & Token-Bucket shaping started.");
         return true;
@@ -305,8 +402,8 @@ public sealed class CaptureEngine : IDisposable
         _isRedirecting = false;
         try
         {
-            _redirectorCts?.Cancel();
-            _redirectorTask?.Wait(TimeSpan.FromMilliseconds(500));
+            _spoofCts?.Cancel();
+            _spoofLoopTask?.Wait(TimeSpan.FromMilliseconds(300));
         }
         catch
         {
@@ -315,16 +412,79 @@ public sealed class CaptureEngine : IDisposable
 
         CompleteUnspoof();
 
-        lock (_handleLock)
+        if (!_isPassiveMonitoring)
         {
-            if (_redirectHandle != nint.Zero)
-            {
-                WpcapNative.pcap_close(_redirectHandle);
-                _redirectHandle = nint.Zero;
-            }
+            StopIpCaptureLoop();
         }
 
         StatusLog?.Invoke("Packet redirection stopped and ARP tables restored.");
+    }
+
+    private bool EnsureIpCaptureRunning(out string? error)
+    {
+        error = null;
+        if (_adapter is null)
+        {
+            error = "No network adapter selected.";
+            return false;
+        }
+
+        lock (_handleLock)
+        {
+            if (_ipHandle == nint.Zero)
+            {
+                _ipHandle = WpcapNative.OpenLiveDevice(_adapter.Id, 65535, 1, 1, out error);
+                if (_ipHandle == nint.Zero)
+                {
+                    return false;
+                }
+
+                if (!WpcapNative.SetBpfFilter(_ipHandle, "ip"))
+                {
+                    error = "Failed to compile BPF 'ip' filter on adapter.";
+                    WpcapNative.pcap_close(_ipHandle);
+                    _ipHandle = nint.Zero;
+                    return false;
+                }
+            }
+        }
+
+        if (_ipCaptureTask is null || _ipCaptureTask.IsCompleted)
+        {
+            _ipCaptureCts?.Dispose();
+            _ipCaptureCts = new CancellationTokenSource();
+            CancellationToken token = _ipCaptureCts.Token;
+
+            _ipCaptureTask = Task.Factory.StartNew(
+                () => RunIpCaptureLoop(token),
+                token,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default);
+        }
+
+        return true;
+    }
+
+    private void StopIpCaptureLoop()
+    {
+        try
+        {
+            _ipCaptureCts?.Cancel();
+            _ipCaptureTask?.Wait(TimeSpan.FromMilliseconds(500));
+        }
+        catch
+        {
+            // Ignore cancellation exceptions
+        }
+
+        lock (_handleLock)
+        {
+            if (_ipHandle != nint.Zero)
+            {
+                WpcapNative.pcap_close(_ipHandle);
+                _ipHandle = nint.Zero;
+            }
+        }
     }
 
     public void SpoofDevice(NetworkDevice targetDevice)
@@ -487,16 +647,14 @@ public sealed class CaptureEngine : IDisposable
         }
     }
 
-    private unsafe void RunPacketRedirectorLoop(CancellationToken ct)
+    private unsafe void RunIpCaptureLoop(CancellationToken ct)
     {
         if (_adapter is null) return;
+        NetworkAdapterInfo adapter = _adapter;
 
-        MacAddress localMac = _adapter.LocalMac;
-        Ipv4Address localIp = _adapter.LocalIp;
-
-        while (!ct.IsCancellationRequested && _isRedirecting)
+        while (!ct.IsCancellationRequested)
         {
-            nint handle = _redirectHandle;
+            nint handle = _ipHandle;
             if (handle == nint.Zero) break;
 
             int res = WpcapNative.pcap_next_ex(handle, out WpcapNative.PcapPkthdr* hdr, out byte* data);
@@ -512,102 +670,261 @@ public sealed class CaptureEngine : IDisposable
             }
 
             var frame = new Span<byte>(data, capLen);
-            if (!PacketPrimitives.TryInspectIpv4Packet(
-                frame,
-                out _,
-                out MacAddress ethSrc,
-                out Ipv4Address ipSrc,
-                out Ipv4Address ipDest,
-                out ProtocolKind protocol,
-                out ushort srcPort,
-                out ushort dstPort,
-                out int l4PayloadOffset))
-            {
-                continue;
-            }
+            ProcessObservedIpv4Frame(frame, capLen, adapter, handle, allowForwarding: _isRedirecting);
+        }
+    }
 
-            // 1. Traffic originating from our own LocalPC
-            if (ethSrc == localMac)
+    internal unsafe void ProcessObservedIpv4Frame(
+        Span<byte> frame,
+        int capLen,
+        NetworkAdapterInfo adapter,
+        nint activeHandle,
+        bool allowForwarding)
+    {
+        if (!PacketPrimitives.TryInspectIpv4Packet(
+            frame,
+            out _,
+            out MacAddress ethSrc,
+            out Ipv4Address ipSrc,
+            out Ipv4Address ipDest,
+            out ProtocolKind protocol,
+            out byte ipProto,
+            out ushort srcPort,
+            out ushort dstPort,
+            out int l4PayloadOffset,
+            out int ipPacketEndOffset))
+        {
+            return;
+        }
+
+        MacAddress localMac = adapter.LocalMac;
+        Ipv4Address localIp = adapter.LocalIp;
+
+        // 1. Outbound traffic originating from our own Local PC
+        if (ethSrc == localMac)
+        {
+            if (ipSrc == localIp)
             {
-                if (ipSrc == localIp)
+                _registry.GetLocalDevice()?.RecordSentPacket(capLen, protocol);
+
+                if (_telemetryObservers.Length > 0)
                 {
-                    _registry.GetLocalDevice()?.RecordSentPacket(capLen, protocol);
+                    var flow = new PacketFlowObservation(
+                        protocol,
+                        ipProto,
+                        ipSrc,
+                        ipDest,
+                        srcPort,
+                        dstPort,
+                        capLen,
+                        IsOutbound: true,
+                        IsLocalHost: true,
+                        ipSrc,
+                        localMac);
+                    DispatchPacketTelemetry(frame, l4PayloadOffset, ipPacketEndOffset, in flow);
                 }
-                continue;
             }
+            return;
+        }
 
-            MacAddress routerMac = _registry.GatewayMac;
-            long nowTimestamp = Stopwatch.GetTimestamp();
+        // 2. Inbound traffic destined to our own Local PC (works passively without ARP spoofing)
+        if (ipDest == localIp)
+        {
+            _registry.GetLocalDevice()?.RecordReceivedPacket(capLen, protocol);
 
-            // 2. Inbound traffic from Gateway -> LAN Device (Download)
-            if (!routerMac.IsZero && ethSrc == routerMac)
+            if (_telemetryObservers.Length > 0)
             {
-                if (ipDest == localIp)
+                var flow = new PacketFlowObservation(
+                    protocol,
+                    ipProto,
+                    ipDest,
+                    ipSrc,
+                    dstPort,
+                    srcPort,
+                    capLen,
+                    IsOutbound: false,
+                    IsLocalHost: true,
+                    ipDest,
+                    localMac);
+                DispatchPacketTelemetry(frame, l4PayloadOffset, ipPacketEndOffset, in flow);
+            }
+            return;
+        }
+
+        if (!allowForwarding)
+        {
+            return;
+        }
+
+        MacAddress routerMac = _registry.GatewayMac;
+        long nowTimestamp = Stopwatch.GetTimestamp();
+
+        // 3. Inbound traffic from Gateway -> Spoofed LAN Device (Download)
+        if (!routerMac.IsZero && ethSrc == routerMac)
+        {
+            NetworkDevice? targetDevice = _registry.TryGetByIp(ipDest);
+            if (targetDevice is not null && !targetDevice.IsLocalHost && !targetDevice.IsGateway)
+            {
+                targetDevice.TouchLastSeen();
+                if (!targetDevice.IsSpoofed)
                 {
-                    _registry.GetLocalDevice()?.RecordReceivedPacket(capLen, protocol);
-                    continue;
+                    return;
                 }
 
-                NetworkDevice? targetDevice = _registry.TryGetByIp(ipDest);
-                if (targetDevice is not null && !targetDevice.IsLocalHost && !targetDevice.IsGateway)
+                if (targetDevice.TryAllowDownloadPacket(capLen, nowTimestamp))
                 {
-                    targetDevice.TouchLastSeen();
-                    if (!targetDevice.IsSpoofed)
+                    if (_telemetryObservers.Length > 0)
                     {
-                        continue;
+                        var flow = new PacketFlowObservation(
+                            protocol,
+                            ipProto,
+                            ipDest,
+                            ipSrc,
+                            dstPort,
+                            srcPort,
+                            capLen,
+                            IsOutbound: false,
+                            IsLocalHost: false,
+                            targetDevice.Ip,
+                            targetDevice.Mac);
+                        DispatchPacketTelemetry(frame, l4PayloadOffset, ipPacketEndOffset, in flow);
                     }
 
-                    if (targetDevice.TryAllowDownloadPacket(capLen, nowTimestamp))
+                    PacketPrimitives.RewriteEthernetHeaderInPlace(frame, targetDevice.Mac, localMac);
+                    if (activeHandle != nint.Zero)
                     {
-                        PacketPrimitives.RewriteEthernetHeaderInPlace(frame, targetDevice.Mac, localMac);
-                        WpcapNative.pcap_sendpacket(handle, data, capLen);
-                        targetDevice.RecordReceivedPacket(capLen, protocol);
-                    }
-                }
-                continue;
-            }
-
-            // 3. Outbound traffic from Spoofed LAN Device -> Gateway (Upload)
-            if (ipDest == localIp)
-            {
-                continue;
-            }
-
-            NetworkDevice? sourceDevice = _registry.TryGetByMac(ethSrc) ?? _registry.TryGetByIp(ipSrc);
-            if (sourceDevice is not null && !sourceDevice.IsLocalHost && !sourceDevice.IsGateway)
-            {
-                sourceDevice.TouchLastSeen();
-
-                // Inspect outbound DNS queries (UDP port 53 / 5353)
-                if (protocol == ProtocolKind.Dns && (dstPort == 53 || dstPort == 5353))
-                {
-                    sourceDevice.RecordDnsQuery();
-                    if (PacketPrimitives.TryExtractDnsQueryDomain(frame, l4PayloadOffset, out string domain))
-                    {
-                        bool domainBlocked = sourceDevice.IsBlocked || sourceDevice.IsDomainBlocked(domain);
-                        _registry.PublishDnsQuery(sourceDevice, domain, domainBlocked);
-                        if (domainBlocked)
+                        fixed (byte* ptr = frame)
                         {
-                            sourceDevice.RecordDroppedPacket();
-                            continue;
+                            WpcapNative.pcap_sendpacket(activeHandle, ptr, capLen);
                         }
                     }
+                    targetDevice.RecordReceivedPacket(capLen, protocol);
+                }
+            }
+            return;
+        }
+
+        // 4. Outbound traffic from Spoofed LAN Device -> Gateway (Upload)
+        NetworkDevice? sourceDevice = _registry.TryGetByMac(ethSrc) ?? _registry.TryGetByIp(ipSrc);
+        if (sourceDevice is not null && !sourceDevice.IsLocalHost && !sourceDevice.IsGateway)
+        {
+            sourceDevice.TouchLastSeen();
+
+            // Inspect outbound DNS queries (UDP port 53 / 5353)
+            if (protocol == ProtocolKind.Dns && (dstPort == 53 || dstPort == 5353))
+            {
+                sourceDevice.RecordDnsQuery();
+                if (PacketPrimitives.TryExtractDnsQueryDomain(frame, l4PayloadOffset, out string domain))
+                {
+                    bool domainBlocked = sourceDevice.IsBlocked || sourceDevice.IsDomainBlocked(domain);
+                    _registry.PublishDnsQuery(sourceDevice, domain, domainBlocked);
+                    if (domainBlocked)
+                    {
+                        sourceDevice.RecordDroppedPacket();
+                        return;
+                    }
+                }
+            }
+
+            if (!sourceDevice.IsSpoofed || routerMac.IsZero)
+            {
+                return;
+            }
+
+            if (sourceDevice.TryAllowUploadPacket(capLen, nowTimestamp))
+            {
+                if (_telemetryObservers.Length > 0)
+                {
+                    var flow = new PacketFlowObservation(
+                        protocol,
+                        ipProto,
+                        ipSrc,
+                        ipDest,
+                        srcPort,
+                        dstPort,
+                        capLen,
+                        IsOutbound: true,
+                        IsLocalHost: false,
+                        sourceDevice.Ip,
+                        sourceDevice.Mac);
+                    DispatchPacketTelemetry(frame, l4PayloadOffset, ipPacketEndOffset, in flow);
                 }
 
-                if (!sourceDevice.IsSpoofed || routerMac.IsZero)
+                PacketPrimitives.RewriteEthernetHeaderInPlace(frame, routerMac, localMac);
+                if (activeHandle != nint.Zero)
                 {
-                    continue;
+                    fixed (byte* ptr = frame)
+                    {
+                        WpcapNative.pcap_sendpacket(activeHandle, ptr, capLen);
+                    }
                 }
-
-                if (sourceDevice.TryAllowUploadPacket(capLen, nowTimestamp))
-                {
-                    PacketPrimitives.RewriteEthernetHeaderInPlace(frame, routerMac, localMac);
-                    WpcapNative.pcap_sendpacket(handle, data, capLen);
-                    sourceDevice.RecordSentPacket(capLen, protocol);
-                }
+                sourceDevice.RecordSentPacket(capLen, protocol);
             }
         }
     }
+
+    private void DispatchPacketTelemetry(
+        ReadOnlySpan<byte> frame,
+        int l4PayloadOffset,
+        int ipPacketEndOffset,
+        in PacketFlowObservation flow)
+    {
+        IPacketTelemetryObserver[] observers = _telemetryObservers;
+        if (observers.Length == 0)
+        {
+            return;
+        }
+
+        ReadOnlySpan<byte> l4Payload = l4PayloadOffset >= 0 && l4PayloadOffset < ipPacketEndOffset && ipPacketEndOffset <= frame.Length
+            ? frame.Slice(l4PayloadOffset, ipPacketEndOffset - l4PayloadOffset)
+            : ReadOnlySpan<byte>.Empty;
+
+        // 1. DNS A / AAAA response mappings (UDP src port 53 or 5353)
+        if (flow.TransportProtocol == 17 && !flow.IsOutbound && (flow.RemotePort == 53 || flow.RemotePort == 5353) && l4Payload.Length >= 12)
+        {
+            DnsIpMapping[] scratch = t_dnsMappingScratch ??= new DnsIpMapping[16];
+            if (PacketPrimitives.TryExtractDnsResponseMappings(l4Payload, scratch, out int count))
+            {
+                ReadOnlySpan<DnsIpMapping> mappings = scratch.AsSpan(0, count);
+                for (int i = 0; i < observers.Length; i++)
+                {
+                    observers[i].OnDnsMappingsObserved(in flow, mappings);
+                }
+                Array.Clear(scratch, 0, count);
+            }
+        }
+        // 2. TLS ClientHello SNI (outbound TCP starting with Handshake 0x16 0x03)
+        else if (flow.TransportProtocol == 6 && flow.IsOutbound && l4Payload.Length >= 43 && l4Payload[0] == 0x16 && l4Payload[1] == 0x03)
+        {
+            if (PacketPrimitives.TryExtractTlsClientHelloSni(l4Payload, out string sni))
+            {
+                for (int i = 0; i < observers.Length; i++)
+                {
+                    observers[i].OnTlsSniObserved(in flow, sni);
+                }
+            }
+        }
+        // 3. Plaintext HTTP Host header (outbound TCP)
+        else if (flow.TransportProtocol == 6 && flow.IsOutbound && l4Payload.Length >= 16 && IsLikelyHttpFirstByte(l4Payload[0]))
+        {
+            if (PacketPrimitives.TryExtractHttpHost(l4Payload, out string host))
+            {
+                for (int i = 0; i < observers.Length; i++)
+                {
+                    observers[i].OnHttpHostObserved(in flow, host);
+                }
+            }
+        }
+
+        for (int i = 0; i < observers.Length; i++)
+        {
+            observers[i].OnPacketFlow(in flow);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsLikelyHttpFirstByte(byte b) =>
+        b is (byte)'G' or (byte)'P' or (byte)'H' or (byte)'D' or (byte)'O' or (byte)'C' or (byte)'T';
 
     private async Task RunPeriodicSpoofLoopAsync(CancellationToken ct)
     {
@@ -645,9 +962,13 @@ public sealed class CaptureEngine : IDisposable
         }
     }
 
+    public void StopCapture() => StopAll();
+
     public void StopAll()
     {
+        _isPassiveMonitoring = false;
         StopRedirection();
+        StopIpCaptureLoop();
 
         try
         {
