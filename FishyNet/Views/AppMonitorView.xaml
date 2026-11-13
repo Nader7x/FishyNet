@@ -66,7 +66,7 @@
                                 <TextBlock Text="Alerts" VerticalAlignment="Center" />
                                 <Border Margin="6,0,0,0"
                                         Padding="6,1"
-                                        CornerRadius="999"
+                                        CornerRadius="9"
                                         Background="{DynamicResource WarnSurfaceBrush}"
                                         BorderBrush="{DynamicResource WarnAccentBrush}"
                                         BorderThickness="1"
@@ -209,7 +209,7 @@
                 </Grid.ColumnDefinitions>
 
                 <Border Grid.Column="0"
-                        CornerRadius="999"
+                        CornerRadius="10"
                         Padding="8,3"
                         Margin="0,0,10,0"
                         VerticalAlignment="Center"
@@ -375,7 +375,7 @@
                             Background="{DynamicResource ControlFillBrush}"
                             BorderBrush="{DynamicResource SubtleBorderBrush}"
                             BorderThickness="1"
-                            CornerRadius="999"
+                            CornerRadius="13"
                             Padding="3">
                         <StackPanel Orientation="Horizontal">
                             <Button Style="{StaticResource GlassChipButtonStyle}"
@@ -460,7 +460,7 @@
                                                                MaxWidth="220" />
                                                     <Border Margin="6,0,0,0"
                                                             Padding="6,1"
-                                                            CornerRadius="999"
+                                                            CornerRadius="9"
                                                             Background="{DynamicResource HealthySurfaceBrush}"
                                                             BorderBrush="{DynamicResource HealthyAccentBrush}"
                                                             BorderThickness="1"
@@ -472,7 +472,7 @@
                                                     </Border>
                                                     <Border Margin="6,0,0,0"
                                                             Padding="6,1"
-                                                            CornerRadius="999"
+                                                            CornerRadius="9"
                                                             Background="{DynamicResource DangerSurfaceBrush}"
                                                             BorderBrush="{DynamicResource DangerAccentBrush}"
                                                             BorderThickness="1"
@@ -635,7 +635,7 @@
                                                        TextTrimming="CharacterEllipsis" />
                                             <Border Margin="8,0,0,0"
                                                     Padding="6,1"
-                                                    CornerRadius="999"
+                                                    CornerRadius="9"
                                                     Background="{DynamicResource DangerSurfaceBrush}"
                                                     BorderBrush="{DynamicResource DangerAccentBrush}"
                                                     BorderThickness="1"
@@ -878,7 +878,7 @@
                                            VerticalAlignment="Center" />
                                 <Border Margin="10,0,0,0"
                                         Padding="8,2"
-                                        CornerRadius="999"
+                                        CornerRadius="9"
                                         Background="{DynamicResource WarnSurfaceBrush}"
                                         BorderBrush="{DynamicResource WarnAccentBrush}"
                                         BorderThickness="1"
@@ -915,7 +915,7 @@
                                             </Grid.ColumnDefinitions>
 
                                             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
-                                                <Border CornerRadius="999" Padding="8,3" BorderThickness="1">
+                                                <Border CornerRadius="10" Padding="8,3" BorderThickness="1">
                                                     <Border.Style>
                                                         <Style TargetType="Border">
                                                             <Setter Property="Background" Value="{DynamicResource ActiveAccentDimBrush}" />
@@ -951,7 +951,7 @@
                                                     </TextBlock>
                                                 </Border>
                                                 <Border Margin="6,0,0,0"
-                                                        CornerRadius="999"
+                                                        CornerRadius="10"
                                                         Padding="8,3"
                                                         Background="{DynamicResource ControlFillBrush}"
                                                         BorderBrush="{DynamicResource SubtleBorderBrush}"

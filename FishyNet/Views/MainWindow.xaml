@@ -286,7 +286,7 @@
                                     <TextBlock Text="App &amp; Website Monitor" VerticalAlignment="Center" />
                                     <Border Margin="7,0,0,0"
                                             Padding="6,1"
-                                            CornerRadius="999"
+                                            CornerRadius="9"
                                             Background="{DynamicResource WarnSurfaceBrush}"
                                             BorderBrush="{DynamicResource WarnAccentBrush}"
                                             BorderThickness="1"
@@ -421,7 +421,7 @@
                                         Background="{DynamicResource ControlFillBrush}"
                                         BorderBrush="{DynamicResource SubtleBorderBrush}"
                                         BorderThickness="1"
-                                        CornerRadius="999"
+                                        CornerRadius="13"
                                         Padding="3">
                                     <StackPanel Orientation="Horizontal">
                                         <Button Style="{StaticResource GlassChipButtonStyle}"
@@ -504,7 +504,7 @@
                                     <Border Background="{DynamicResource ControlFillBrush}"
                                             BorderBrush="{DynamicResource SubtleBorderBrush}"
                                             BorderThickness="1"
-                                            CornerRadius="999"
+                                            CornerRadius="13"
                                             Padding="3"
                                             Margin="0,0,6,0">
                                         <StackPanel Orientation="Horizontal">
@@ -563,7 +563,7 @@
                                                VerticalAlignment="Center" />
                                     <Border Margin="8,0,0,0"
                                             Padding="8,2"
-                                            CornerRadius="999"
+                                            CornerRadius="9"
                                             Background="{DynamicResource WarnSurfaceBrush}"
                                             BorderBrush="{DynamicResource WarnAccentBrush}"
                                             BorderThickness="1"
@@ -718,14 +718,11 @@
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <Button Command="{Binding ToggleMonitoredCommand}"
-                                                                Background="Transparent"
-                                                                BorderThickness="0"
-                                                                Padding="0"
-                                                                Cursor="Hand"
+                                                                Style="{StaticResource TransparentBadgeButtonStyle}"
                                                                 HorizontalAlignment="Left"
                                                                 VerticalAlignment="Center"
                                                                 ToolTip="{Binding MonitorModeDescription}">
-                                                            <Border CornerRadius="999" Padding="8,2" BorderThickness="1">
+                                                            <Border CornerRadius="10" Padding="10,3" MinWidth="76" BorderThickness="1">
                                                                 <Border.Style>
                                                                     <Style TargetType="Border">
                                                                         <Setter Property="Background" Value="{DynamicResource HealthySurfaceBrush}" />
@@ -755,6 +752,8 @@
                                                                     </Style>
                                                                 </Border.Style>
                                                                 <TextBlock Text="{Binding StatusBadgeText}"
+                                                                           HorizontalAlignment="Center"
+                                                                           TextAlignment="Center"
                                                                            FontFamily="{StaticResource MonoFont}"
                                                                            FontSize="10"
                                                                            FontWeight="SemiBold">
@@ -1136,7 +1135,7 @@
                                     Padding="14,8"
                                     Visibility="{Binding HasBatchSelection, Converter={StaticResource BoolToVis}}">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Border CornerRadius="999"
+                                    <Border CornerRadius="10"
                                             Padding="9,3"
                                             Margin="0,0,10,0"
                                             Background="{DynamicResource ActiveAccentDimBrush}"
@@ -1672,7 +1671,7 @@
                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                VerticalAlignment="Center" />
                                     <Border HorizontalAlignment="Right"
-                                            CornerRadius="999"
+                                            CornerRadius="10"
                                             Padding="9,2"
                                             BorderThickness="1">
                                         <Border.Style>
@@ -1808,7 +1807,7 @@
                                     Background="{DynamicResource ControlFillBrush}"
                                     BorderBrush="{DynamicResource SubtleBorderBrush}"
                                     BorderThickness="1"
-                                    CornerRadius="999"
+                                    CornerRadius="13"
                                     Padding="3">
                                 <StackPanel Orientation="Horizontal">
                                     <Button Style="{StaticResource GlassChipButtonStyle}"
