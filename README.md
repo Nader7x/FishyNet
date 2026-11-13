@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/fishynet-banner.png" alt="FishyNet Banner" width="640" />
+</p>
+
 # FishyNet (Modern .NET 10 WPF Edition)
 
 High-performance LAN bandwidth shaper, real-time traffic analyzer, and historical device usage monitor for Windows (`net10.0-windows`, `x64`).
