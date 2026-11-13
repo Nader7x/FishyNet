@@ -9,48 +9,31 @@ namespace FishyNet.Controls;
 
 /// <summary>
 /// Hardware-accelerated stacked daily usage bar chart for rendering Today, 7-Day Week, and 30-Day Month
-/// Download + Upload byte volumes with friendly Y-axis labels and interactive hover tooltips.
+/// Download + Upload byte volumes with bindable palette brushes, Y-axis labels, and hover tooltips.
 /// </summary>
 public sealed class UsageBarChartControl : FrameworkElement
 {
-    private static readonly SolidColorBrush DownloadBrush;
-    private static readonly SolidColorBrush UploadBrush;
-    private static readonly SolidColorBrush HoverBandBrush;
-    private static readonly SolidColorBrush LabelBrush;
-    private static readonly SolidColorBrush TooltipBgBrush;
-    private static readonly Pen GridPen;
-    private static readonly Pen TooltipBorderPen;
+    private static readonly Brush DefaultDownloadBrush = ControlRenderHelper.CreateFrozenSolidBrush(Color.FromRgb(56, 189, 248));
+    private static readonly Brush DefaultUploadBrush = ControlRenderHelper.CreateFrozenSolidBrush(Color.FromRgb(167, 139, 250));
+    private static readonly Brush DefaultHoverBandBrush = ControlRenderHelper.CreateFrozenSolidBrush(Color.FromArgb(28, 255, 255, 255));
+    private static readonly Brush DefaultLabelBrush = ControlRenderHelper.CreateFrozenSolidBrush(Color.FromRgb(176, 189, 206));
+    private static readonly Brush DefaultTooltipBgBrush = ControlRenderHelper.CreateFrozenSolidBrush(Color.FromArgb(235, 11, 15, 23));
+    private static readonly Brush DefaultTooltipBorderBrush = ControlRenderHelper.CreateFrozenSolidBrush(Color.FromArgb(36, 255, 255, 255));
+    private static readonly Brush DefaultTooltipFgBrush = ControlRenderHelper.CreateFrozenSolidBrush(Color.FromRgb(248, 250, 252));
+    private static readonly Brush DefaultGridBrush = ControlRenderHelper.CreateFrozenSolidBrush(Color.FromArgb(24, 255, 255, 255));
+
     private static readonly Typeface MonoTypeface = new("Cascadia Mono, Consolas, Segoe UI");
 
+    private Brush _frozenDownloadBrush = DefaultDownloadBrush;
+    private Brush _frozenUploadBrush = DefaultUploadBrush;
+    private Brush _frozenHoverBandBrush = DefaultHoverBandBrush;
+    private Brush _frozenLabelBrush = DefaultLabelBrush;
+    private Brush _frozenTooltipBgBrush = DefaultTooltipBgBrush;
+    private Brush _frozenTooltipFgBrush = DefaultTooltipFgBrush;
+    private Pen _gridPen = null!;
+    private Pen _tooltipBorderPen = null!;
+
     private int _hoveredIndex = -1;
-
-    static UsageBarChartControl()
-    {
-        DownloadBrush = new SolidColorBrush(Color.FromRgb(56, 189, 248)); // Sky #38BDF8
-        DownloadBrush.Freeze();
-
-        UploadBrush = new SolidColorBrush(Color.FromRgb(168, 85, 247)); // Violet #A855F7
-        UploadBrush.Freeze();
-
-        HoverBandBrush = new SolidColorBrush(Color.FromArgb(28, 255, 255, 255));
-        HoverBandBrush.Freeze();
-
-        LabelBrush = new SolidColorBrush(Color.FromRgb(148, 163, 184));
-        LabelBrush.Freeze();
-
-        TooltipBgBrush = new SolidColorBrush(Color.FromArgb(240, 15, 23, 42));
-        TooltipBgBrush.Freeze();
-
-        var gridBrush = new SolidColorBrush(Color.FromArgb(35, 148, 163, 184));
-        gridBrush.Freeze();
-        GridPen = new Pen(gridBrush, 1.0);
-        GridPen.Freeze();
-
-        var borderBrush = new SolidColorBrush(Color.FromRgb(51, 65, 85));
-        borderBrush.Freeze();
-        TooltipBorderPen = new Pen(borderBrush, 1.0);
-        TooltipBorderPen.Freeze();
-    }
 
     public static readonly DependencyProperty SeriesProperty =
         DependencyProperty.Register(
@@ -59,10 +42,116 @@ public sealed class UsageBarChartControl : FrameworkElement
             typeof(UsageBarChartControl),
             new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
 
+    public static readonly DependencyProperty DownloadBrushProperty =
+        DependencyProperty.Register(nameof(DownloadBrush), typeof(Brush), typeof(UsageBarChartControl),
+            new FrameworkPropertyMetadata(DefaultDownloadBrush, FrameworkPropertyMetadataOptions.AffectsRender, OnBrushChanged));
+
+    public static readonly DependencyProperty UploadBrushProperty =
+        DependencyProperty.Register(nameof(UploadBrush), typeof(Brush), typeof(UsageBarChartControl),
+            new FrameworkPropertyMetadata(DefaultUploadBrush, FrameworkPropertyMetadataOptions.AffectsRender, OnBrushChanged));
+
+    public static readonly DependencyProperty HoverBandBrushProperty =
+        DependencyProperty.Register(nameof(HoverBandBrush), typeof(Brush), typeof(UsageBarChartControl),
+            new FrameworkPropertyMetadata(DefaultHoverBandBrush, FrameworkPropertyMetadataOptions.AffectsRender, OnBrushChanged));
+
+    public static readonly DependencyProperty LabelBrushProperty =
+        DependencyProperty.Register(nameof(LabelBrush), typeof(Brush), typeof(UsageBarChartControl),
+            new FrameworkPropertyMetadata(DefaultLabelBrush, FrameworkPropertyMetadataOptions.AffectsRender, OnBrushChanged));
+
+    public static readonly DependencyProperty TooltipBackgroundBrushProperty =
+        DependencyProperty.Register(nameof(TooltipBackgroundBrush), typeof(Brush), typeof(UsageBarChartControl),
+            new FrameworkPropertyMetadata(DefaultTooltipBgBrush, FrameworkPropertyMetadataOptions.AffectsRender, OnBrushChanged));
+
+    public static readonly DependencyProperty TooltipBorderBrushProperty =
+        DependencyProperty.Register(nameof(TooltipBorderBrush), typeof(Brush), typeof(UsageBarChartControl),
+            new FrameworkPropertyMetadata(DefaultTooltipBorderBrush, FrameworkPropertyMetadataOptions.AffectsRender, OnBrushChanged));
+
+    public static readonly DependencyProperty TooltipForegroundBrushProperty =
+        DependencyProperty.Register(nameof(TooltipForegroundBrush), typeof(Brush), typeof(UsageBarChartControl),
+            new FrameworkPropertyMetadata(DefaultTooltipFgBrush, FrameworkPropertyMetadataOptions.AffectsRender, OnBrushChanged));
+
+    public static readonly DependencyProperty GridLineBrushProperty =
+        DependencyProperty.Register(nameof(GridLineBrush), typeof(Brush), typeof(UsageBarChartControl),
+            new FrameworkPropertyMetadata(DefaultGridBrush, FrameworkPropertyMetadataOptions.AffectsRender, OnBrushChanged));
+
     public IReadOnlyList<DailyUsagePoint>? Series
     {
         get => (IReadOnlyList<DailyUsagePoint>?)GetValue(SeriesProperty);
         set => SetValue(SeriesProperty, value);
+    }
+
+    public Brush DownloadBrush
+    {
+        get => (Brush)GetValue(DownloadBrushProperty);
+        set => SetValue(DownloadBrushProperty, value);
+    }
+
+    public Brush UploadBrush
+    {
+        get => (Brush)GetValue(UploadBrushProperty);
+        set => SetValue(UploadBrushProperty, value);
+    }
+
+    public Brush HoverBandBrush
+    {
+        get => (Brush)GetValue(HoverBandBrushProperty);
+        set => SetValue(HoverBandBrushProperty, value);
+    }
+
+    public Brush LabelBrush
+    {
+        get => (Brush)GetValue(LabelBrushProperty);
+        set => SetValue(LabelBrushProperty, value);
+    }
+
+    public Brush TooltipBackgroundBrush
+    {
+        get => (Brush)GetValue(TooltipBackgroundBrushProperty);
+        set => SetValue(TooltipBackgroundBrushProperty, value);
+    }
+
+    public Brush TooltipBorderBrush
+    {
+        get => (Brush)GetValue(TooltipBorderBrushProperty);
+        set => SetValue(TooltipBorderBrushProperty, value);
+    }
+
+    public Brush TooltipForegroundBrush
+    {
+        get => (Brush)GetValue(TooltipForegroundBrushProperty);
+        set => SetValue(TooltipForegroundBrushProperty, value);
+    }
+
+    public Brush GridLineBrush
+    {
+        get => (Brush)GetValue(GridLineBrushProperty);
+        set => SetValue(GridLineBrushProperty, value);
+    }
+
+    public UsageBarChartControl()
+    {
+        RebuildRenderResources();
+    }
+
+    private static void OnBrushChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is UsageBarChartControl control)
+        {
+            control.RebuildRenderResources();
+        }
+    }
+
+    private void RebuildRenderResources()
+    {
+        _frozenDownloadBrush = ControlRenderHelper.FreezeBrush(DownloadBrush, DefaultDownloadBrush);
+        _frozenUploadBrush = ControlRenderHelper.FreezeBrush(UploadBrush, DefaultUploadBrush);
+        _frozenHoverBandBrush = ControlRenderHelper.FreezeBrush(HoverBandBrush, DefaultHoverBandBrush);
+        _frozenLabelBrush = ControlRenderHelper.FreezeBrush(LabelBrush, DefaultLabelBrush);
+        _frozenTooltipBgBrush = ControlRenderHelper.FreezeBrush(TooltipBackgroundBrush, DefaultTooltipBgBrush);
+        _frozenTooltipFgBrush = ControlRenderHelper.FreezeBrush(TooltipForegroundBrush, DefaultTooltipFgBrush);
+
+        _gridPen = ControlRenderHelper.CreateFrozenPen(ControlRenderHelper.FreezeBrush(GridLineBrush, DefaultGridBrush), 1.0);
+        _tooltipBorderPen = ControlRenderHelper.CreateFrozenPen(ControlRenderHelper.FreezeBrush(TooltipBorderBrush, DefaultTooltipBorderBrush), 1.0);
     }
 
     protected override void OnMouseMove(MouseEventArgs e)
@@ -149,7 +238,7 @@ public sealed class UsageBarChartControl : FrameworkElement
         foreach (double frac in fractions)
         {
             double y = topMargin + plotHeight * (1.0 - frac);
-            dc.DrawLine(GridPen, new Point(leftMargin, y), new Point(leftMargin + plotWidth, y));
+            dc.DrawLine(_gridPen, new Point(leftMargin, y), new Point(leftMargin + plotWidth, y));
 
             long labelBytes = (long)(maxTotal * frac);
             var ft = new FormattedText(
@@ -158,7 +247,7 @@ public sealed class UsageBarChartControl : FrameworkElement
                 FlowDirection.LeftToRight,
                 MonoTypeface,
                 10.5,
-                LabelBrush,
+                _frozenLabelBrush,
                 dpi);
             dc.DrawText(ft, new Point(Math.Max(0, leftMargin - ft.Width - 8), y - (ft.Height / 2)));
         }
@@ -181,7 +270,7 @@ public sealed class UsageBarChartControl : FrameworkElement
 
             if (i == _hoveredIndex)
             {
-                dc.DrawRectangle(HoverBandBrush, null, new Rect(slotX, topMargin, slotWidth, plotHeight));
+                dc.DrawRoundedRectangle(_frozenHoverBandBrush, null, new Rect(slotX, topMargin, slotWidth, plotHeight), 4.0, 4.0);
             }
 
             double downHeight = (pt.DownloadBytes / (double)maxTotal) * plotHeight;
@@ -191,21 +280,21 @@ public sealed class UsageBarChartControl : FrameworkElement
             if (downHeight >= 0.5)
             {
                 dc.DrawRoundedRectangle(
-                    DownloadBrush,
+                    _frozenDownloadBrush,
                     null,
                     new Rect(barX, bottomY - downHeight, barWidth, downHeight),
-                    2.0,
-                    2.0);
+                    3.0,
+                    3.0);
             }
 
             if (upHeight >= 0.5)
             {
                 dc.DrawRoundedRectangle(
-                    UploadBrush,
+                    _frozenUploadBrush,
                     null,
                     new Rect(barX, bottomY - downHeight - upHeight, barWidth, upHeight),
-                    2.0,
-                    2.0);
+                    3.0,
+                    3.0);
             }
 
             if (i % labelStride == 0 || i == count - 1)
@@ -216,7 +305,7 @@ public sealed class UsageBarChartControl : FrameworkElement
                     FlowDirection.LeftToRight,
                     MonoTypeface,
                     10.0,
-                    LabelBrush,
+                    _frozenLabelBrush,
                     dpi);
                 double textX = slotX + (slotWidth / 2.0) - (dateText.Width / 2.0);
                 dc.DrawText(dateText, new Point(textX, topMargin + plotHeight + 6));
@@ -234,7 +323,7 @@ public sealed class UsageBarChartControl : FrameworkElement
                 FlowDirection.LeftToRight,
                 MonoTypeface,
                 11.0,
-                Brushes.White,
+                _frozenTooltipFgBrush,
                 dpi);
 
             double boxW = tipText.Width + 18;
@@ -243,7 +332,7 @@ public sealed class UsageBarChartControl : FrameworkElement
             double boxX = Math.Clamp(slotCenterX - (boxW / 2), leftMargin + 4, width - boxW - 4);
             double boxY = topMargin + 6;
 
-            dc.DrawRoundedRectangle(TooltipBgBrush, TooltipBorderPen, new Rect(boxX, boxY, boxW, boxH), 5, 5);
+            dc.DrawRoundedRectangle(_frozenTooltipBgBrush, _tooltipBorderPen, new Rect(boxX, boxY, boxW, boxH), 8, 8);
             dc.DrawText(tipText, new Point(boxX + 9, boxY + 7));
         }
     }

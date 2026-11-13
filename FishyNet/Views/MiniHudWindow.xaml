@@ -2,11 +2,11 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="FishyNet Mini HUD"
-        Width="720"
-        Height="42"
+        Width="760"
+        Height="48"
         WindowStyle="None"
-        AllowsTransparency="False"
-        Background="{StaticResource CanvasBgBrush}"
+        AllowsTransparency="True"
+        Background="Transparent"
         Topmost="True"
         ShowInTaskbar="False"
         ResizeMode="NoResize"
@@ -14,16 +14,21 @@
         SnapsToDevicePixels="True"
         UseLayoutRounding="True">
 
-    <Border Background="{StaticResource SurfaceBgBrush}"
-            BorderBrush="{StaticResource BorderSubtleBrush}"
+    <Border x:Name="CapsuleBorder"
+            Background="{DynamicResource GlassSurfaceElevatedBrush}"
+            BorderBrush="{DynamicResource GlassSpecularRimBrush}"
             BorderThickness="1"
-            Padding="10,4"
+            CornerRadius="22"
+            Padding="14,6"
             MouseLeftButtonDown="OnHeaderMouseLeftButtonDown"
             Cursor="SizeAll">
 
         <Grid VerticalAlignment="Center">
             <Grid.ColumnDefinitions>
-                <!-- Brand & Drag Handle -->
+                <!-- Brand & HUD Pill -->
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="12" />
+                <!-- Divider -->
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="12" />
                 <!-- Download -->
@@ -35,68 +40,164 @@
                 <!-- Ping -->
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="14" />
-                <!-- Online hosts -->
+                <!-- Hosts -->
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
-                <!-- Boost Button & Actions -->
+                <!-- Boost Pill & Actions -->
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <!-- Brand Drag Badge -->
+            <!-- Brand Capsule Identity -->
             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                <Border Background="{StaticResource CanvasBgBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" Padding="5,2" Margin="0,0,8,0">
-                    <TextBlock Text="HUD" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" />
+                <Border Width="7"
+                        Height="7"
+                        CornerRadius="999"
+                        Background="{DynamicResource HealthyAccentBrush}"
+                        Margin="0,0,8,0"
+                        VerticalAlignment="Center" />
+                <TextBlock Text="FISHYNET"
+                           FontFamily="{DynamicResource MonoFont}"
+                           FontSize="12"
+                           FontWeight="Bold"
+                           Foreground="{DynamicResource TextPrimaryBrush}"
+                           VerticalAlignment="Center"
+                           Margin="0,0,8,0" />
+                <Border Background="{DynamicResource ControlFillBrush}"
+                        BorderBrush="{DynamicResource SubtleBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="999"
+                        Padding="7,2"
+                        VerticalAlignment="Center">
+                    <TextBlock Text="HUD"
+                               FontFamily="{DynamicResource MonoFont}"
+                               FontSize="10"
+                               FontWeight="Bold"
+                               Foreground="{DynamicResource ActiveAccentBrush}" />
                 </Border>
-                <TextBlock Text="FISHYNET" FontFamily="{StaticResource MonoFont}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
             </StackPanel>
 
+            <!-- Subtle Hairline Divider -->
+            <Border Grid.Column="2"
+                    Width="1"
+                    Height="18"
+                    Background="{DynamicResource SubtleBorderBrush}"
+                    VerticalAlignment="Center" />
+
             <!-- Live LAN Download -->
-            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                <TextBlock Text="RX " FontFamily="{StaticResource MonoFont}" FontSize="11" Foreground="{StaticResource TextMutedBrush}" FontWeight="Bold" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding TotalDownloadText}" FontFamily="{StaticResource MonoFont}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentSkyBrush}" VerticalAlignment="Center" />
+            <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="RX "
+                           FontFamily="{DynamicResource MonoFont}"
+                           FontSize="11"
+                           FontWeight="Bold"
+                           Foreground="{DynamicResource TextMutedBrush}"
+                           VerticalAlignment="Center" />
+                <TextBlock Text="{Binding TotalDownloadText}"
+                           FontFamily="{DynamicResource MonoFont}"
+                           FontSize="12"
+                           FontWeight="Bold"
+                           Foreground="{DynamicResource RxAccentBrush}"
+                           VerticalAlignment="Center" />
             </StackPanel>
 
             <!-- Live LAN Upload -->
-            <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
-                <TextBlock Text="TX " FontFamily="{StaticResource MonoFont}" FontSize="11" Foreground="{StaticResource TextMutedBrush}" FontWeight="Bold" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding TotalUploadText}" FontFamily="{StaticResource MonoFont}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentVioletBrush}" VerticalAlignment="Center" />
+            <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="TX "
+                           FontFamily="{DynamicResource MonoFont}"
+                           FontSize="11"
+                           FontWeight="Bold"
+                           Foreground="{DynamicResource TextMutedBrush}"
+                           VerticalAlignment="Center" />
+                <TextBlock Text="{Binding TotalUploadText}"
+                           FontFamily="{DynamicResource MonoFont}"
+                           FontSize="12"
+                           FontWeight="Bold"
+                           Foreground="{DynamicResource TxAccentBrush}"
+                           VerticalAlignment="Center" />
             </StackPanel>
 
             <!-- Gateway Ping RTT -->
-            <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Center">
-                <Border Width="5" Height="5" Background="{StaticResource AccentEmeraldBrush}" Margin="0,0,5,0" VerticalAlignment="Center" />
-                <TextBlock Text="RTT " FontFamily="{StaticResource MonoFont}" FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding GatewayLatencyText}" FontFamily="{StaticResource MonoFont}" FontSize="11.5" FontWeight="Bold" Foreground="{StaticResource AccentEmeraldBrush}" VerticalAlignment="Center" />
+            <StackPanel Grid.Column="8" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="RTT "
+                           FontFamily="{DynamicResource MonoFont}"
+                           FontSize="11"
+                           FontWeight="Bold"
+                           Foreground="{DynamicResource TextMutedBrush}"
+                           VerticalAlignment="Center" />
+                <TextBlock Text="{Binding GatewayLatencyText}"
+                           FontFamily="{DynamicResource MonoFont}"
+                           FontSize="12"
+                           FontWeight="Bold"
+                           Foreground="{DynamicResource HealthyAccentBrush}"
+                           VerticalAlignment="Center" />
             </StackPanel>
 
             <!-- Hosts Count -->
-            <StackPanel Grid.Column="8" Orientation="Horizontal" VerticalAlignment="Center">
-                <TextBlock Text="HOSTS: " FontFamily="{StaticResource MonoFont}" FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding OnlineDevicesCount}" FontFamily="{StaticResource MonoFont}" FontSize="11.5" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
+            <StackPanel Grid.Column="10" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="HOSTS "
+                           FontFamily="{DynamicResource MonoFont}"
+                           FontSize="11"
+                           FontWeight="Bold"
+                           Foreground="{DynamicResource TextMutedBrush}"
+                           VerticalAlignment="Center" />
+                <TextBlock Text="{Binding OnlineDevicesCount}"
+                           FontFamily="{DynamicResource MonoFont}"
+                           FontSize="12"
+                           FontWeight="Bold"
+                           Foreground="{DynamicResource TextPrimaryBrush}"
+                           VerticalAlignment="Center" />
             </StackPanel>
 
-            <!-- Right Controls: Boost Button & Full Dashboard Toggle -->
-            <StackPanel Grid.Column="10" Orientation="Horizontal" VerticalAlignment="Center">
-                <!-- 1-Click Gaming Boost Toggle Button -->
+            <!-- Right Controls: Glowing Boost Pill, Dashboard & Close Capsule Buttons -->
+            <StackPanel Grid.Column="12" Orientation="Horizontal" VerticalAlignment="Center">
                 <Button Command="{Binding ToggleGamingBoostCommand}"
-                        Height="24"
-                        Padding="8,2"
-                        Margin="0,0,4,0"
-                        FontSize="11"
-                        FontFamily="{StaticResource MonoFont}"
-                        FontWeight="Bold"
+                        Height="28"
+                        Margin="0,0,6,0"
                         Cursor="Hand"
                         ToolTip="1-Click Gaming Priority: Throttles all other background devices to 64 KB/s">
                     <Button.Style>
-                        <Style TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
-                            <Setter Property="Background" Value="{StaticResource SurfaceBgBrush}" />
-                            <Setter Property="BorderBrush" Value="{StaticResource AccentSkyBrush}" />
-                            <Setter Property="Foreground" Value="{StaticResource AccentSkyBrush}" />
+                        <Style TargetType="Button">
+                            <Setter Property="Background" Value="{DynamicResource ControlFillBrush}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource RxAccentBrush}" />
+                            <Setter Property="Foreground" Value="{DynamicResource RxAccentBrush}" />
+                            <Setter Property="BorderThickness" Value="1" />
+                            <Setter Property="Padding" Value="12,3" />
+                            <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+                            <Setter Property="FontSize" Value="11" />
+                            <Setter Property="FontWeight" Value="Bold" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="BoostBd"
+                                                Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="14"
+                                                Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center"
+                                                              VerticalAlignment="Center"
+                                                              TextElement.Foreground="{TemplateBinding Foreground}" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="BoostBd" Property="Background" Value="{DynamicResource GlassSurfaceHoverBrush}" />
+                                                <Setter TargetName="BoostBd" Property="BorderBrush" Value="{DynamicResource ActiveAccentBrush}" />
+                                            </Trigger>
+                                            <DataTrigger Binding="{Binding IsGamingBoostActive}" Value="True">
+                                                <Setter TargetName="BoostBd" Property="Effect">
+                                                    <Setter.Value>
+                                                        <DropShadowEffect Color="#FBBF24" BlurRadius="12" ShadowDepth="0" Opacity="0.45" />
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </DataTrigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsGamingBoostActive}" Value="True">
-                                    <Setter Property="Background" Value="#3B230B" />
-                                    <Setter Property="BorderBrush" Value="{StaticResource AccentAmberBrush}" />
-                                    <Setter Property="Foreground" Value="#FEF08A" />
+                                    <Setter Property="Background" Value="{DynamicResource WarnSurfaceBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource WarnAccentBrush}" />
+                                    <Setter Property="Foreground" Value="{DynamicResource WarnAccentBrush}" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -104,28 +205,56 @@
                     <TextBlock Text="{Binding GamingBoostButtonText}" />
                 </Button>
 
-                <!-- Restore Full App -->
                 <Button Content="DASHBOARD"
                         Click="OnRestoreFullWindowClicked"
-                        Style="{StaticResource SecondaryButtonStyle}"
-                        Height="24"
-                        Padding="8,2"
+                        Style="{DynamicResource GlassPillButtonStyle}"
+                        Height="28"
+                        Padding="12,3"
                         FontSize="11"
-                        FontFamily="{StaticResource MonoFont}"
-                        Margin="0,0,4,0"
+                        FontFamily="{DynamicResource MonoFont}"
+                        Margin="0,0,6,0"
                         Cursor="Hand"
                         ToolTip="Restore main engineering console" />
 
-                <!-- Close HUD -->
                 <Button Content="✕"
                         Click="OnCloseHudClicked"
-                        Style="{StaticResource SecondaryButtonStyle}"
-                        Height="24"
-                        Padding="6,2"
+                        Width="28"
+                        Height="28"
                         FontSize="11"
-                        FontFamily="{StaticResource MonoFont}"
+                        FontFamily="{DynamicResource MonoFont}"
                         Cursor="Hand"
-                        ToolTip="Close Mini HUD" />
+                        ToolTip="Close Mini HUD">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Background" Value="{DynamicResource ControlFillBrush}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource SubtleBorderBrush}" />
+                            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+                            <Setter Property="BorderThickness" Value="1" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="CloseBd"
+                                                Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="14">
+                                            <ContentPresenter HorizontalAlignment="Center"
+                                                              VerticalAlignment="Center"
+                                                              TextElement.Foreground="{TemplateBinding Foreground}" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="CloseBd" Property="Background" Value="{DynamicResource DangerSurfaceBrush}" />
+                                                <Setter TargetName="CloseBd" Property="BorderBrush" Value="{DynamicResource DangerAccentBrush}" />
+                                                <Setter Property="Foreground" Value="{DynamicResource DangerForegroundBrush}" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Button.Style>
+                </Button>
             </StackPanel>
         </Grid>
     </Border>

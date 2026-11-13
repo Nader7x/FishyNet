@@ -1,0 +1,129 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:po="http://schemas.microsoft.com/winfx/2006/xaml/presentation/options"
+                    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                    mc:Ignorable="po">
+
+    <!-- =========================================================================
+         PALETTE: GRAPHITE MINT & ORCHID (graphite_mint)
+         Neutral charcoal SOC stealth with crisp mint/teal & orchid accents
+         ========================================================================= -->
+
+    <Color x:Key="WindowBackdropColor">#D908090B</Color>
+    <Color x:Key="WindowSolidFallbackColor">#FF08090B</Color>
+    <Color x:Key="GlassPrimaryColor">#A60F1114</Color>
+    <Color x:Key="GlassElevatedColor">#BF171A1F</Color>
+    <Color x:Key="GlassHoverColor">#CC20242B</Color>
+    <Color x:Key="SpecularTopLeftColor">#33D1FAE5</Color>
+    <Color x:Key="BorderEdgeColor">#22FFFFFF</Color>
+    <Color x:Key="SubtleBorderColor">#16FFFFFF</Color>
+    <Color x:Key="ControlFillColor">#990A0B0E</Color>
+    <Color x:Key="RowHoverColor">#2220242B</Color>
+    <Color x:Key="RowSelectedColor">#2E10B981</Color>
+    <Color x:Key="DataGridGridLineColor">#12FFFFFF</Color>
+    <Color x:Key="TooltipBgColor">#EB0C0E12</Color>
+
+    <Color x:Key="ActiveAccentColor">#FF10B981</Color>
+    <Color x:Key="ActiveAccentDimColor">#2E10B981</Color>
+    <Color x:Key="ActiveAccentForegroundColor">#FF02160C</Color>
+
+    <Color x:Key="TextPrimaryColor">#FFF4F6F8</Color>
+    <Color x:Key="TextSecondaryColor">#FFABB6C2</Color>
+    <Color x:Key="TextMutedColor">#FF8894A0</Color>
+
+    <Color x:Key="RxColor">#FF2DD4BF</Color>
+    <Color x:Key="TxColor">#FFE879F9</Color>
+    <Color x:Key="WarnColor">#FFFACC15</Color>
+    <Color x:Key="DangerColor">#FFFB7185</Color>
+    <Color x:Key="HealthyColor">#FF34D399</Color>
+    <Color x:Key="AppMonitorColor">#FF34D399</Color>
+    <Color x:Key="WebMonitorColor">#FF38BDF8</Color>
+
+    <!-- Legacy Color Aliases -->
+    <Color x:Key="CanvasBgColor">#D908090B</Color>
+    <Color x:Key="SurfaceBgColor">#A60F1114</Color>
+    <Color x:Key="SubtleBgColor">#B80B0C0F</Color>
+    <Color x:Key="ElevatedBgColor">#BF171A1F</Color>
+    <Color x:Key="HoverBgColor">#CC20242B</Color>
+    <Color x:Key="BorderColor">#16FFFFFF</Color>
+    <Color x:Key="BorderActiveColor">#22FFFFFF</Color>
+    <Color x:Key="AccentEmeraldColor">#FF34D399</Color>
+    <Color x:Key="AccentSkyColor">#FF2DD4BF</Color>
+    <Color x:Key="AccentVioletColor">#FFE879F9</Color>
+    <Color x:Key="AccentAmberColor">#FFFACC15</Color>
+    <Color x:Key="AccentCrimsonColor">#FFFB7185</Color>
+
+    <!-- Frosted Glass Surface & Rim Brushes -->
+    <SolidColorBrush x:Key="WindowBackdropBrush" Color="{StaticResource WindowBackdropColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="WindowSolidFallbackBrush" Color="{StaticResource WindowSolidFallbackColor}" po:Freeze="True" />
+
+    <LinearGradientBrush x:Key="GlassSurfacePrimaryBrush" StartPoint="0,0" EndPoint="1,1" po:Freeze="True">
+        <GradientStop Color="#B314171B" Offset="0.0" />
+        <GradientStop Color="#A60F1114" Offset="1.0" />
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="GlassSurfaceElevatedBrush" StartPoint="0,0" EndPoint="1,1" po:Freeze="True">
+        <GradientStop Color="#C91D2128" Offset="0.0" />
+        <GradientStop Color="#BF171A1F" Offset="1.0" />
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="GlassSurfaceHoverBrush" StartPoint="0,0" EndPoint="1,1" po:Freeze="True">
+        <GradientStop Color="#D4272C35" Offset="0.0" />
+        <GradientStop Color="#CC20242B" Offset="1.0" />
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="GlassSpecularRimBrush" StartPoint="0,0" EndPoint="1,1" po:Freeze="True">
+        <GradientStop Color="{StaticResource SpecularTopLeftColor}" Offset="0.0" />
+        <GradientStop Color="{StaticResource SubtleBorderColor}" Offset="0.48" />
+        <GradientStop Color="{StaticResource BorderEdgeColor}" Offset="1.0" />
+    </LinearGradientBrush>
+
+    <SolidColorBrush x:Key="BorderEdgeBrush" Color="{StaticResource BorderEdgeColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="SubtleBorderBrush" Color="{StaticResource SubtleBorderColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="ControlFillBrush" Color="{StaticResource ControlFillColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="ControlHoverBrush" Color="{StaticResource GlassHoverColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="RowHoverBrush" Color="{StaticResource RowHoverColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="RowSelectedBrush" Color="{StaticResource RowSelectedColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="DataGridGridLineBrush" Color="{StaticResource DataGridGridLineColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="TooltipBgBrush" Color="{StaticResource TooltipBgColor}" po:Freeze="True" />
+
+    <!-- Interactive & Semantic Brushes -->
+    <SolidColorBrush x:Key="ActiveAccentBrush" Color="{StaticResource ActiveAccentColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="ActiveAccentDimBrush" Color="{StaticResource ActiveAccentDimColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="ActiveAccentForegroundBrush" Color="{StaticResource ActiveAccentForegroundColor}" po:Freeze="True" />
+
+    <SolidColorBrush x:Key="RxAccentBrush" Color="{StaticResource RxColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="TxAccentBrush" Color="{StaticResource TxColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="WarnAccentBrush" Color="{StaticResource WarnColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="WarnSurfaceBrush" Color="#33FACC15" po:Freeze="True" />
+    <SolidColorBrush x:Key="DangerAccentBrush" Color="{StaticResource DangerColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="DangerSurfaceBrush" Color="#33FB7185" po:Freeze="True" />
+    <SolidColorBrush x:Key="DangerHoverBrush" Color="#52FB7185" po:Freeze="True" />
+    <SolidColorBrush x:Key="DangerForegroundBrush" Color="#FFFDA4AF" po:Freeze="True" />
+    <SolidColorBrush x:Key="HealthyAccentBrush" Color="{StaticResource HealthyColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="HealthySurfaceBrush" Color="#3334D399" po:Freeze="True" />
+    <SolidColorBrush x:Key="AppMonitorAccentBrush" Color="{StaticResource AppMonitorColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="WebMonitorAccentBrush" Color="{StaticResource WebMonitorColor}" po:Freeze="True" />
+
+    <!-- Typography Brushes -->
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimaryColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMutedColor}" po:Freeze="True" />
+
+    <!-- Legacy Brush Aliases -->
+    <SolidColorBrush x:Key="CanvasBgBrush" Color="{StaticResource CanvasBgColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="SurfaceBgBrush" Color="{StaticResource SurfaceBgColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="SubtleBgBrush" Color="{StaticResource SubtleBgColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="ElevatedBgBrush" Color="{StaticResource ElevatedBgColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="HoverBgBrush" Color="{StaticResource HoverBgColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BorderSubtleBrush" Color="{StaticResource BorderColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BorderActiveBrush" Color="{StaticResource BorderActiveColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="GlassCardBrush" Color="{StaticResource SurfaceBgColor}" po:Freeze="True" />
+
+    <SolidColorBrush x:Key="AccentEmeraldBrush" Color="{StaticResource AccentEmeraldColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="AccentSkyBrush" Color="{StaticResource AccentSkyColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="AccentVioletBrush" Color="{StaticResource AccentVioletColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="AccentAmberBrush" Color="{StaticResource AccentAmberColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="AccentCrimsonBrush" Color="{StaticResource AccentCrimsonColor}" po:Freeze="True" />
+
+</ResourceDictionary>

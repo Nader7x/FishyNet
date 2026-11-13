@@ -10,41 +10,66 @@ namespace FishyNet.Controls;
 
 /// <summary>
 /// Hardware-accelerated interactive Network Topology Radar & Node Graph canvas.
-/// Renders the Gateway at center with LAN devices orbiting around it.
-/// Renders animated particle streams whose thickness and velocity scale with live bandwidth flow.
-/// Zero heap allocations during the 60fps rendering loop.
+/// Renders the Gateway at center with LAN devices orbiting around it, using bindable palette brushes
+/// and zero heap allocations during the 60fps rendering loop.
 /// </summary>
 public sealed class NetworkTopologyControl : FrameworkElement
 {
-    private static readonly SolidColorBrush RadarBgBrush;
-    private static readonly Pen RadarGridPen;
-    private static readonly Pen RadarCrosshairPen;
-    private static readonly SolidColorBrush GatewayFillBrush;
-    private static readonly Pen GatewayGlowPen;
-    private static readonly SolidColorBrush DeviceFillBrush;
-    private static readonly SolidColorBrush DeviceSelectedBrush;
-    private static readonly Pen DeviceNormalPen;
-    private static readonly Pen DeviceSelectedPen;
-    private static readonly Pen DeviceBlockedPen;
-    private static readonly Pen DeviceThrottledPen;
-    private static readonly SolidColorBrush TextPrimaryBrush;
-    private static readonly SolidColorBrush TextSecondaryBrush;
-    private static readonly SolidColorBrush SkyParticleBrush;
-    private static readonly SolidColorBrush VioletParticleBrush;
-    private static readonly SolidColorBrush CrimsonParticleBrush;
-    private static readonly SolidColorBrush NodeHaloBrush;
-    private static readonly Pen RadarPulsePen;
-    private static readonly Pen StreamBlockedPen;
-    private static readonly Pen StreamThrottledPen;
-    private static readonly Pen StreamBypassedPen;
-    private static readonly Pen[] StreamActivePens;
-    private static readonly Typeface LabelTypeface;
-    private static readonly Typeface GlyphTypeface;
+    private static readonly Color DefaultRadarBgColor = Color.FromArgb(166, 13, 16, 23);
+    private static readonly Color DefaultGridColor = Color.FromArgb(26, 255, 255, 255);
+    private static readonly Color DefaultGatewayColor = Color.FromRgb(52, 211, 153);
+    private static readonly Color DefaultDeviceFillColor = Color.FromArgb(225, 20, 24, 34);
+    private static readonly Color DefaultDeviceSelectedColor = Color.FromArgb(245, 29, 35, 50);
+    private static readonly Color DefaultDownloadColor = Color.FromRgb(56, 189, 248);
+    private static readonly Color DefaultUploadColor = Color.FromRgb(167, 139, 250);
+    private static readonly Color DefaultBlockedColor = Color.FromRgb(248, 113, 113);
+    private static readonly Color DefaultThrottledColor = Color.FromRgb(251, 191, 36);
+    private static readonly Color DefaultBypassedColor = Color.FromArgb(90, 132, 147, 168);
+    private static readonly Color DefaultPrimaryTextColor = Color.FromRgb(248, 250, 252);
+    private static readonly Color DefaultSecondaryTextColor = Color.FromRgb(176, 189, 206);
 
-    private static double _cachedDpi = -1;
-    private static FormattedText? _cachedGwGlyph;
-    private static FormattedText? _cachedGwLabel;
-    private static readonly Dictionary<string, FormattedText> GlyphCache = [];
+    private static readonly Brush DefaultRadarBgBrush = ControlRenderHelper.CreateFrozenSolidBrush(DefaultRadarBgColor);
+    private static readonly Brush DefaultGridBrush = ControlRenderHelper.CreateFrozenSolidBrush(DefaultGridColor);
+    private static readonly Brush DefaultGatewayBrush = ControlRenderHelper.CreateFrozenSolidBrush(DefaultGatewayColor);
+    private static readonly Brush DefaultDeviceFillBrush = ControlRenderHelper.CreateFrozenSolidBrush(DefaultDeviceFillColor);
+    private static readonly Brush DefaultDeviceSelectedBrush = ControlRenderHelper.CreateFrozenSolidBrush(DefaultDeviceSelectedColor);
+    private static readonly Brush DefaultDownloadBrush = ControlRenderHelper.CreateFrozenSolidBrush(DefaultDownloadColor);
+    private static readonly Brush DefaultUploadBrush = ControlRenderHelper.CreateFrozenSolidBrush(DefaultUploadColor);
+    private static readonly Brush DefaultBlockedBrush = ControlRenderHelper.CreateFrozenSolidBrush(DefaultBlockedColor);
+    private static readonly Brush DefaultThrottledBrush = ControlRenderHelper.CreateFrozenSolidBrush(DefaultThrottledColor);
+    private static readonly Brush DefaultBypassedBrush = ControlRenderHelper.CreateFrozenSolidBrush(DefaultBypassedColor);
+    private static readonly Brush DefaultPrimaryTextBrush = ControlRenderHelper.CreateFrozenSolidBrush(DefaultPrimaryTextColor);
+    private static readonly Brush DefaultSecondaryTextBrush = ControlRenderHelper.CreateFrozenSolidBrush(DefaultSecondaryTextColor);
+
+    private static readonly Typeface LabelTypeface = new(new FontFamily("Segoe UI Variable Text, Segoe UI, Arial"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
+    private static readonly Typeface GlyphTypeface = new(new FontFamily("Segoe UI Emoji, Segoe UI, sans-serif"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+
+    private Brush _frozenRadarBgBrush = DefaultRadarBgBrush;
+    private Pen _radarGridPen = null!;
+    private Pen _radarCrosshairPen = null!;
+    private Brush _frozenGatewayFillBrush = DefaultGatewayBrush;
+    private Pen _gatewayGlowPen = null!;
+    private Pen _radarPulsePen = null!;
+    private Brush _frozenDeviceFillBrush = DefaultDeviceFillBrush;
+    private Brush _frozenDeviceSelectedBrush = DefaultDeviceSelectedBrush;
+    private Pen _deviceNormalPen = null!;
+    private Pen _deviceSelectedPen = null!;
+    private Pen _deviceBlockedPen = null!;
+    private Pen _deviceThrottledPen = null!;
+    private Brush _frozenPrimaryTextBrush = DefaultPrimaryTextBrush;
+    private Brush _frozenSecondaryTextBrush = DefaultSecondaryTextBrush;
+    private Brush _skyParticleBrush = DefaultDownloadBrush;
+    private Brush _violetParticleBrush = DefaultUploadBrush;
+    private Brush _nodeHaloBrush = null!;
+    private Pen _streamBlockedPen = null!;
+    private Pen _streamThrottledPen = null!;
+    private Pen _streamBypassedPen = null!;
+    private readonly Pen[] _streamActivePens = new Pen[5];
+
+    private double _cachedDpi = -1;
+    private FormattedText? _cachedGwGlyph;
+    private FormattedText? _cachedGwLabel;
+    private readonly Dictionary<string, FormattedText> _glyphCache = [];
 
     private readonly List<NodeLayoutInfo> _nodeLayouts = [];
     private readonly List<DeviceViewModel> _orbitingDevices = [];
@@ -74,111 +99,6 @@ public sealed class NetworkTopologyControl : FrameworkElement
         }
     }
 
-    static NetworkTopologyControl()
-    {
-        RadarBgBrush = new SolidColorBrush(Color.FromArgb(140, 16, 17, 22));
-        RadarBgBrush.Freeze();
-
-        var gridBrush = new SolidColorBrush(Color.FromArgb(30, 148, 163, 184));
-        gridBrush.Freeze();
-        RadarGridPen = new Pen(gridBrush, 1.0) { DashStyle = new DashStyle([4, 4], 0) };
-        RadarGridPen.Freeze();
-
-        var crossBrush = new SolidColorBrush(Color.FromArgb(18, 148, 163, 184));
-        crossBrush.Freeze();
-        RadarCrosshairPen = new Pen(crossBrush, 1.0);
-        RadarCrosshairPen.Freeze();
-
-        var gwFill = new SolidColorBrush(Color.FromArgb(235, 16, 185, 129));
-        gwFill.Freeze();
-        GatewayFillBrush = gwFill;
-
-        var gwGlow = new SolidColorBrush(Color.FromArgb(90, 16, 185, 129));
-        gwGlow.Freeze();
-        GatewayGlowPen = new Pen(gwGlow, 5.0);
-        GatewayGlowPen.Freeze();
-
-        var devFill = new SolidColorBrush(Color.FromArgb(235, 25, 27, 34));
-        devFill.Freeze();
-        DeviceFillBrush = devFill;
-
-        var devSel = new SolidColorBrush(Color.FromArgb(250, 38, 41, 52));
-        devSel.Freeze();
-        DeviceSelectedBrush = devSel;
-
-        var devPen = new SolidColorBrush(Color.FromArgb(180, 56, 189, 248));
-        devPen.Freeze();
-        DeviceNormalPen = new Pen(devPen, 1.8);
-        DeviceNormalPen.Freeze();
-
-        var selPen = new SolidColorBrush(Color.FromArgb(255, 56, 189, 248));
-        selPen.Freeze();
-        DeviceSelectedPen = new Pen(selPen, 3.0);
-        DeviceSelectedPen.Freeze();
-
-        var blkPen = new SolidColorBrush(Color.FromArgb(255, 239, 68, 68));
-        blkPen.Freeze();
-        DeviceBlockedPen = new Pen(blkPen, 2.0);
-        DeviceBlockedPen.Freeze();
-
-        var thrPen = new SolidColorBrush(Color.FromArgb(255, 245, 158, 11));
-        thrPen.Freeze();
-        DeviceThrottledPen = new Pen(thrPen, 2.0);
-        DeviceThrottledPen.Freeze();
-
-        TextPrimaryBrush = new SolidColorBrush(Color.FromRgb(248, 250, 252));
-        TextPrimaryBrush.Freeze();
-
-        TextSecondaryBrush = new SolidColorBrush(Color.FromRgb(148, 163, 184));
-        TextSecondaryBrush.Freeze();
-
-        SkyParticleBrush = new SolidColorBrush(Color.FromArgb(230, 56, 189, 248));
-        SkyParticleBrush.Freeze();
-
-        VioletParticleBrush = new SolidColorBrush(Color.FromArgb(230, 168, 85, 247));
-        VioletParticleBrush.Freeze();
-
-        CrimsonParticleBrush = new SolidColorBrush(Color.FromArgb(230, 239, 68, 68));
-        CrimsonParticleBrush.Freeze();
-
-        var haloBrush = new SolidColorBrush(Color.FromArgb(50, 56, 189, 248));
-        haloBrush.Freeze();
-        NodeHaloBrush = haloBrush;
-
-        var pulseBrush = new SolidColorBrush(Color.FromArgb(80, 16, 185, 129));
-        pulseBrush.Freeze();
-        RadarPulsePen = new Pen(pulseBrush, 1.5);
-        RadarPulsePen.Freeze();
-
-        StreamBlockedPen = new Pen(CrimsonParticleBrush, 1.5) { DashStyle = new DashStyle([3, 3], 0) };
-        StreamBlockedPen.Freeze();
-
-        var thrStreamBrush = new SolidColorBrush(Color.FromArgb(140, 245, 158, 11));
-        thrStreamBrush.Freeze();
-        StreamThrottledPen = new Pen(thrStreamBrush, 2.0);
-        StreamThrottledPen.Freeze();
-
-        var slateStreamBrush = new SolidColorBrush(Color.FromArgb(70, 100, 116, 139));
-        slateStreamBrush.Freeze();
-        StreamBypassedPen = new Pen(slateStreamBrush, 1.0);
-        StreamBypassedPen.Freeze();
-
-        StreamActivePens = new Pen[5];
-        for (int i = 0; i < 5; i++)
-        {
-            double th = 1.2 + (i * 0.95);
-            byte a = (byte)(80 + (i * 35));
-            var activeBrush = new SolidColorBrush(Color.FromArgb(a, 56, 189, 248));
-            activeBrush.Freeze();
-            var p = new Pen(activeBrush, th);
-            p.Freeze();
-            StreamActivePens[i] = p;
-        }
-
-        LabelTypeface = new Typeface(new FontFamily("Segoe UI Variable Display, Segoe UI, sans-serif"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
-        GlyphTypeface = new Typeface(new FontFamily("Segoe UI Emoji, Segoe UI, sans-serif"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
-    }
-
     public static readonly DependencyProperty DevicesProperty =
         DependencyProperty.Register(
             nameof(Devices),
@@ -193,6 +113,54 @@ public sealed class NetworkTopologyControl : FrameworkElement
             typeof(NetworkTopologyControl),
             new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault | FrameworkPropertyMetadataOptions.AffectsRender));
 
+    public static readonly DependencyProperty RadarBackgroundBrushProperty =
+        DependencyProperty.Register(nameof(RadarBackgroundBrush), typeof(Brush), typeof(NetworkTopologyControl),
+            new FrameworkPropertyMetadata(DefaultRadarBgBrush, FrameworkPropertyMetadataOptions.AffectsRender, OnBrushChanged));
+
+    public static readonly DependencyProperty GridLineBrushProperty =
+        DependencyProperty.Register(nameof(GridLineBrush), typeof(Brush), typeof(NetworkTopologyControl),
+            new FrameworkPropertyMetadata(DefaultGridBrush, FrameworkPropertyMetadataOptions.AffectsRender, OnBrushChanged));
+
+    public static readonly DependencyProperty GatewayBrushProperty =
+        DependencyProperty.Register(nameof(GatewayBrush), typeof(Brush), typeof(NetworkTopologyControl),
+            new FrameworkPropertyMetadata(DefaultGatewayBrush, FrameworkPropertyMetadataOptions.AffectsRender, OnBrushChanged));
+
+    public static readonly DependencyProperty DeviceFillBrushProperty =
+        DependencyProperty.Register(nameof(DeviceFillBrush), typeof(Brush), typeof(NetworkTopologyControl),
+            new FrameworkPropertyMetadata(DefaultDeviceFillBrush, FrameworkPropertyMetadataOptions.AffectsRender, OnBrushChanged));
+
+    public static readonly DependencyProperty DeviceSelectedBrushProperty =
+        DependencyProperty.Register(nameof(DeviceSelectedBrush), typeof(Brush), typeof(NetworkTopologyControl),
+            new FrameworkPropertyMetadata(DefaultDeviceSelectedBrush, FrameworkPropertyMetadataOptions.AffectsRender, OnBrushChanged));
+
+    public static readonly DependencyProperty DownloadBrushProperty =
+        DependencyProperty.Register(nameof(DownloadBrush), typeof(Brush), typeof(NetworkTopologyControl),
+            new FrameworkPropertyMetadata(DefaultDownloadBrush, FrameworkPropertyMetadataOptions.AffectsRender, OnBrushChanged));
+
+    public static readonly DependencyProperty UploadBrushProperty =
+        DependencyProperty.Register(nameof(UploadBrush), typeof(Brush), typeof(NetworkTopologyControl),
+            new FrameworkPropertyMetadata(DefaultUploadBrush, FrameworkPropertyMetadataOptions.AffectsRender, OnBrushChanged));
+
+    public static readonly DependencyProperty BlockedBrushProperty =
+        DependencyProperty.Register(nameof(BlockedBrush), typeof(Brush), typeof(NetworkTopologyControl),
+            new FrameworkPropertyMetadata(DefaultBlockedBrush, FrameworkPropertyMetadataOptions.AffectsRender, OnBrushChanged));
+
+    public static readonly DependencyProperty ThrottledBrushProperty =
+        DependencyProperty.Register(nameof(ThrottledBrush), typeof(Brush), typeof(NetworkTopologyControl),
+            new FrameworkPropertyMetadata(DefaultThrottledBrush, FrameworkPropertyMetadataOptions.AffectsRender, OnBrushChanged));
+
+    public static readonly DependencyProperty BypassedBrushProperty =
+        DependencyProperty.Register(nameof(BypassedBrush), typeof(Brush), typeof(NetworkTopologyControl),
+            new FrameworkPropertyMetadata(DefaultBypassedBrush, FrameworkPropertyMetadataOptions.AffectsRender, OnBrushChanged));
+
+    public static readonly DependencyProperty PrimaryTextBrushProperty =
+        DependencyProperty.Register(nameof(PrimaryTextBrush), typeof(Brush), typeof(NetworkTopologyControl),
+            new FrameworkPropertyMetadata(DefaultPrimaryTextBrush, FrameworkPropertyMetadataOptions.AffectsRender, OnBrushChanged));
+
+    public static readonly DependencyProperty SecondaryTextBrushProperty =
+        DependencyProperty.Register(nameof(SecondaryTextBrush), typeof(Brush), typeof(NetworkTopologyControl),
+            new FrameworkPropertyMetadata(DefaultSecondaryTextBrush, FrameworkPropertyMetadataOptions.AffectsRender, OnBrushChanged));
+
     public IEnumerable? Devices
     {
         get => (IEnumerable?)GetValue(DevicesProperty);
@@ -203,6 +171,87 @@ public sealed class NetworkTopologyControl : FrameworkElement
     {
         get => (DeviceViewModel?)GetValue(SelectedDeviceProperty);
         set => SetValue(SelectedDeviceProperty, value);
+    }
+
+    public Brush RadarBackgroundBrush
+    {
+        get => (Brush)GetValue(RadarBackgroundBrushProperty);
+        set => SetValue(RadarBackgroundBrushProperty, value);
+    }
+
+    public Brush GridLineBrush
+    {
+        get => (Brush)GetValue(GridLineBrushProperty);
+        set => SetValue(GridLineBrushProperty, value);
+    }
+
+    public Brush GatewayBrush
+    {
+        get => (Brush)GetValue(GatewayBrushProperty);
+        set => SetValue(GatewayBrushProperty, value);
+    }
+
+    public Brush DeviceFillBrush
+    {
+        get => (Brush)GetValue(DeviceFillBrushProperty);
+        set => SetValue(DeviceFillBrushProperty, value);
+    }
+
+    public Brush DeviceSelectedBrush
+    {
+        get => (Brush)GetValue(DeviceSelectedBrushProperty);
+        set => SetValue(DeviceSelectedBrushProperty, value);
+    }
+
+    public Brush DownloadBrush
+    {
+        get => (Brush)GetValue(DownloadBrushProperty);
+        set => SetValue(DownloadBrushProperty, value);
+    }
+
+    public Brush UploadBrush
+    {
+        get => (Brush)GetValue(UploadBrushProperty);
+        set => SetValue(UploadBrushProperty, value);
+    }
+
+    public Brush BlockedBrush
+    {
+        get => (Brush)GetValue(BlockedBrushProperty);
+        set => SetValue(BlockedBrushProperty, value);
+    }
+
+    public Brush ThrottledBrush
+    {
+        get => (Brush)GetValue(ThrottledBrushProperty);
+        set => SetValue(ThrottledBrushProperty, value);
+    }
+
+    public Brush BypassedBrush
+    {
+        get => (Brush)GetValue(BypassedBrushProperty);
+        set => SetValue(BypassedBrushProperty, value);
+    }
+
+    public Brush PrimaryTextBrush
+    {
+        get => (Brush)GetValue(PrimaryTextBrushProperty);
+        set => SetValue(PrimaryTextBrushProperty, value);
+    }
+
+    public Brush SecondaryTextBrush
+    {
+        get => (Brush)GetValue(SecondaryTextBrushProperty);
+        set => SetValue(SecondaryTextBrushProperty, value);
+    }
+
+    private static void OnBrushChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is NetworkTopologyControl control)
+        {
+            control.RebuildRenderResources();
+            control.InvalidateTextCaches();
+        }
     }
 
     private static void OnDevicesChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -231,25 +280,78 @@ public sealed class NetworkTopologyControl : FrameworkElement
     public NetworkTopologyControl()
     {
         ClipToBounds = true;
+        RebuildRenderResources();
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
         IsVisibleChanged += OnIsVisibleChanged;
     }
 
-    private void OnLoaded(object sender, RoutedEventArgs e)
+    private void RebuildRenderResources()
     {
-        UpdateRenderSubscription();
+        _frozenRadarBgBrush = ControlRenderHelper.FreezeBrush(RadarBackgroundBrush, DefaultRadarBgBrush);
+
+        Color gridColor = ControlRenderHelper.ExtractColor(GridLineBrush, DefaultGridColor);
+        _radarGridPen = ControlRenderHelper.CreateFrozenPen(ControlRenderHelper.CreateFrozenSolidBrush(gridColor, 36), 1.0, dashStyle: new DashStyle([4, 4], 0));
+        _radarCrosshairPen = ControlRenderHelper.CreateFrozenPen(ControlRenderHelper.CreateFrozenSolidBrush(gridColor, 20), 1.0);
+
+        Color gwColor = ControlRenderHelper.ExtractColor(GatewayBrush, DefaultGatewayColor);
+        _frozenGatewayFillBrush = ControlRenderHelper.CreateFrozenSolidBrush(gwColor, 235);
+        _gatewayGlowPen = ControlRenderHelper.CreateFrozenPen(ControlRenderHelper.CreateFrozenSolidBrush(gwColor, 90), 5.0);
+        _radarPulsePen = ControlRenderHelper.CreateFrozenPen(ControlRenderHelper.CreateFrozenSolidBrush(gwColor, 85), 1.5);
+
+        _frozenDeviceFillBrush = ControlRenderHelper.FreezeBrush(DeviceFillBrush, DefaultDeviceFillBrush);
+        _frozenDeviceSelectedBrush = ControlRenderHelper.FreezeBrush(DeviceSelectedBrush, DefaultDeviceSelectedBrush);
+
+        Color dlColor = ControlRenderHelper.ExtractColor(DownloadBrush, DefaultDownloadColor);
+        Color ulColor = ControlRenderHelper.ExtractColor(UploadBrush, DefaultUploadColor);
+        Color blkColor = ControlRenderHelper.ExtractColor(BlockedBrush, DefaultBlockedColor);
+        Color thrColor = ControlRenderHelper.ExtractColor(ThrottledBrush, DefaultThrottledColor);
+
+        _deviceNormalPen = ControlRenderHelper.CreateFrozenPen(ControlRenderHelper.CreateFrozenSolidBrush(dlColor, 185), 1.8);
+        _deviceSelectedPen = ControlRenderHelper.CreateFrozenPen(ControlRenderHelper.CreateFrozenSolidBrush(dlColor, 255), 3.0);
+        _deviceBlockedPen = ControlRenderHelper.CreateFrozenPen(ControlRenderHelper.CreateFrozenSolidBrush(blkColor, 255), 2.0);
+        _deviceThrottledPen = ControlRenderHelper.CreateFrozenPen(ControlRenderHelper.CreateFrozenSolidBrush(thrColor, 255), 2.0);
+
+        _frozenPrimaryTextBrush = ControlRenderHelper.FreezeBrush(PrimaryTextBrush, DefaultPrimaryTextBrush);
+        _frozenSecondaryTextBrush = ControlRenderHelper.FreezeBrush(SecondaryTextBrush, DefaultSecondaryTextBrush);
+
+        _skyParticleBrush = ControlRenderHelper.CreateFrozenSolidBrush(dlColor, 235);
+        _violetParticleBrush = ControlRenderHelper.CreateFrozenSolidBrush(ulColor, 235);
+        _nodeHaloBrush = ControlRenderHelper.CreateFrozenSolidBrush(dlColor, 50);
+
+        _streamBlockedPen = ControlRenderHelper.CreateFrozenPen(ControlRenderHelper.CreateFrozenSolidBrush(blkColor, 230), 1.5, dashStyle: new DashStyle([3, 3], 0));
+        _streamThrottledPen = ControlRenderHelper.CreateFrozenPen(ControlRenderHelper.CreateFrozenSolidBrush(thrColor, 145), 2.0);
+
+        Color bypColor = ControlRenderHelper.ExtractColor(BypassedBrush, DefaultBypassedColor);
+        _streamBypassedPen = ControlRenderHelper.CreateFrozenPen(ControlRenderHelper.CreateFrozenSolidBrush(bypColor, 80), 1.0);
+
+        for (int i = 0; i < _streamActivePens.Length; i++)
+        {
+            double th = 1.2 + (i * 0.95);
+            byte a = (byte)(80 + (i * 35));
+            _streamActivePens[i] = ControlRenderHelper.CreateFrozenPen(ControlRenderHelper.CreateFrozenSolidBrush(dlColor, a), th);
+        }
     }
 
-    private void OnUnloaded(object sender, RoutedEventArgs e)
+    private void InvalidateTextCaches()
     {
-        StopRendering();
+        _cachedDpi = -1;
+        _cachedGwGlyph = null;
+        _cachedGwLabel = null;
+        _glyphCache.Clear();
+
+        for (int i = 0; i < _nodeLayouts.Count; i++)
+        {
+            _nodeLayouts[i].NameFt = null;
+            _nodeLayouts[i].SpeedFt = null;
+        }
     }
 
-    private void OnIsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
-    {
-        UpdateRenderSubscription();
-    }
+    private void OnLoaded(object sender, RoutedEventArgs e) => UpdateRenderSubscription();
+
+    private void OnUnloaded(object sender, RoutedEventArgs e) => StopRendering();
+
+    private void OnIsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e) => UpdateRenderSubscription();
 
     private void UpdateRenderSubscription()
     {
@@ -290,7 +392,6 @@ public sealed class NetworkTopologyControl : FrameworkElement
 
         if (delta > 0)
         {
-            // Advance animation time based on elapsed delta
             _animationTime += delta / 1000.0;
             InvalidateVisual();
         }
@@ -335,14 +436,7 @@ public sealed class NetworkTopologyControl : FrameworkElement
         }
 
         NodeLayoutInfo? hit = HitTestNode(pos);
-        if (hit != null)
-        {
-            SelectedDevice = hit.ViewModel;
-        }
-        else
-        {
-            SelectedDevice = null;
-        }
+        SelectedDevice = hit?.ViewModel;
         e.Handled = true;
     }
 
@@ -373,23 +467,20 @@ public sealed class NetworkTopologyControl : FrameworkElement
         double maxRadius = Math.Min(width, height) / 2.0 - 45.0;
         if (maxRadius < 30) return;
 
-        // 1. Draw Background radar gradient & concentric range rings
-        dc.DrawRectangle(RadarBgBrush, null, new Rect(0, 0, width, height));
+        // 1. Draw Background radar surface & concentric range rings
+        dc.DrawRoundedRectangle(_frozenRadarBgBrush, null, new Rect(0, 0, width, height), 12.0, 12.0);
 
-        // Crosshairs
-        dc.DrawLine(RadarCrosshairPen, new Point(center.X, 0), new Point(center.X, height));
-        dc.DrawLine(RadarCrosshairPen, new Point(0, center.Y), new Point(width, center.Y));
+        dc.DrawLine(_radarCrosshairPen, new Point(center.X, 0), new Point(center.X, height));
+        dc.DrawLine(_radarCrosshairPen, new Point(0, center.Y), new Point(width, center.Y));
 
-        // Concentric rings
-        dc.DrawEllipse(null, RadarGridPen, center, maxRadius * 0.35, maxRadius * 0.35);
-        dc.DrawEllipse(null, RadarGridPen, center, maxRadius * 0.70, maxRadius * 0.70);
-        dc.DrawEllipse(null, RadarGridPen, center, maxRadius, maxRadius);
+        dc.DrawEllipse(null, _radarGridPen, center, maxRadius * 0.35, maxRadius * 0.35);
+        dc.DrawEllipse(null, _radarGridPen, center, maxRadius * 0.70, maxRadius * 0.70);
+        dc.DrawEllipse(null, _radarGridPen, center, maxRadius, maxRadius);
 
-        // Animated Radar Sweep Pulse (using PushOpacity with pre-frozen pen for zero allocation)
         double pulseRatio = (_animationTime * 0.3) % 1.0;
         double pulseRadius = maxRadius * pulseRatio;
         dc.PushOpacity(1.0 - pulseRatio);
-        dc.DrawEllipse(null, RadarPulsePen, center, pulseRadius, pulseRadius);
+        dc.DrawEllipse(null, _radarPulsePen, center, pulseRadius, pulseRadius);
         dc.Pop();
 
         // 2. Identify Gateway and Orbiting Devices
@@ -414,7 +505,7 @@ public sealed class NetworkTopologyControl : FrameworkElement
             }
         }
 
-        // 3. Layout Orbiting Nodes in concentric or radial distribution
+        // 3. Layout Orbiting Nodes
         int count = _orbitingDevices.Count;
         double baseRadius = maxRadius * 0.78;
 
@@ -450,9 +541,9 @@ public sealed class NetworkTopologyControl : FrameworkElement
         }
 
         double dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
-        EnsureStaticTextCache(dpi);
+        EnsureTextCache(dpi);
 
-        // 4. Draw Connection Streams & Animated Particles between Gateway and Nodes
+        // 4. Draw Connection Streams & Animated Particles
         for (int i = 0; i < _nodeLayouts.Count; i++)
         {
             NodeLayoutInfo node = _nodeLayouts[i];
@@ -465,25 +556,24 @@ public sealed class NetworkTopologyControl : FrameworkElement
             Pen streamPen;
             if (dev.IsBlocked)
             {
-                streamPen = StreamBlockedPen;
+                streamPen = _streamBlockedPen;
             }
             else if (dev.IsThrottled)
             {
-                streamPen = StreamThrottledPen;
+                streamPen = _streamThrottledPen;
             }
             else if (!dev.IsSpoofed)
             {
-                streamPen = StreamBypassedPen;
+                streamPen = _streamBypassedPen;
             }
             else
             {
                 int penIdx = Math.Clamp((int)(totalBps / (100.0 * 1024.0)), 0, 4);
-                streamPen = StreamActivePens[penIdx];
+                streamPen = _streamActivePens[penIdx];
             }
 
             dc.DrawLine(streamPen, center, node.Position);
 
-            // Draw Animated Particle Flow along stream
             if (!dev.IsBlocked && totalBps > 100)
             {
                 double flowSpeed = 0.5 + Math.Min(3.0, totalBps / 300000.0);
@@ -497,7 +587,7 @@ public sealed class NetworkTopologyControl : FrameworkElement
                         center.X + ((node.Position.X - center.X) * particleOffset),
                         center.Y + ((node.Position.Y - center.Y) * particleOffset));
 
-                    Brush pBrush = downBps >= upBps ? SkyParticleBrush : VioletParticleBrush;
+                    Brush pBrush = downBps >= upBps ? _skyParticleBrush : _violetParticleBrush;
                     dc.DrawEllipse(pBrush, null, pPt, 2.5, 2.5);
                 }
             }
@@ -511,25 +601,21 @@ public sealed class NetworkTopologyControl : FrameworkElement
             bool isSelected = dev == SelectedDevice;
             bool isHovered = node == _hoveredNode;
 
-            Brush fill = isSelected ? DeviceSelectedBrush : DeviceFillBrush;
+            Brush fill = isSelected ? _frozenDeviceSelectedBrush : _frozenDeviceFillBrush;
             Pen pen = dev.IsBlocked
-                ? DeviceBlockedPen
-                : (dev.IsThrottled ? DeviceThrottledPen : (isSelected ? DeviceSelectedPen : DeviceNormalPen));
+                ? _deviceBlockedPen
+                : (dev.IsThrottled ? _deviceThrottledPen : (isSelected ? _deviceSelectedPen : _deviceNormalPen));
 
-            // Outer halo when hovered or selected
             if (isSelected || isHovered)
             {
-                dc.DrawEllipse(NodeHaloBrush, null, node.Position, node.Radius + 7, node.Radius + 7);
+                dc.DrawEllipse(_nodeHaloBrush, null, node.Position, node.Radius + 7, node.Radius + 7);
             }
 
-            // Main node circle
             dc.DrawEllipse(fill, pen, node.Position, node.Radius, node.Radius);
 
-            // Category Icon Glyph in node center (cached)
             FormattedText ftGlyph = GetOrCreateGlyph(dev.CategoryIconGlyph, dpi);
             dc.DrawText(ftGlyph, new Point(node.Position.X - (ftGlyph.Width / 2.0), node.Position.Y - (ftGlyph.Height / 2.0)));
 
-            // Device Name label beneath node (cached per node unless text or selection changes)
             string displayName = dev.DisplayName;
             if (displayName.Length > 16) displayName = displayName[..15] + "…";
 
@@ -543,13 +629,12 @@ public sealed class NetworkTopologyControl : FrameworkElement
                     FlowDirection.LeftToRight,
                     LabelTypeface,
                     10.0,
-                    isSelected ? TextPrimaryBrush : TextSecondaryBrush,
+                    isSelected ? _frozenPrimaryTextBrush : _frozenSecondaryTextBrush,
                     dpi);
             }
 
             dc.DrawText(node.NameFt, new Point(node.Position.X - (node.NameFt.Width / 2.0), node.Position.Y + node.Radius + 3.0));
 
-            // Live rate label beneath name (cached per node unless text changes)
             string speedText = dev.DownloadSpeedText;
             if (node.SpeedFt == null || node.LastSpeed != speedText)
             {
@@ -560,7 +645,7 @@ public sealed class NetworkTopologyControl : FrameworkElement
                     FlowDirection.LeftToRight,
                     LabelTypeface,
                     9.0,
-                    SkyParticleBrush,
+                    _skyParticleBrush,
                     dpi);
             }
 
@@ -568,8 +653,8 @@ public sealed class NetworkTopologyControl : FrameworkElement
         }
 
         // 6. Draw Center Gateway Node
-        dc.DrawEllipse(null, GatewayGlowPen, center, 28, 28);
-        dc.DrawEllipse(GatewayFillBrush, null, center, 24, 24);
+        dc.DrawEllipse(null, _gatewayGlowPen, center, 28, 28);
+        dc.DrawEllipse(_frozenGatewayFillBrush, null, center, 24, 24);
 
         if (_cachedGwGlyph != null)
         {
@@ -582,12 +667,12 @@ public sealed class NetworkTopologyControl : FrameworkElement
         }
     }
 
-    private static void EnsureStaticTextCache(double dpi)
+    private void EnsureTextCache(double dpi)
     {
-        if (Math.Abs(_cachedDpi - dpi) > 0.001)
+        if (Math.Abs(_cachedDpi - dpi) > 0.001 || _cachedGwGlyph is null || _cachedGwLabel is null)
         {
             _cachedDpi = dpi;
-            GlyphCache.Clear();
+            _glyphCache.Clear();
 
             _cachedGwGlyph = new FormattedText(
                 "📡",
@@ -595,7 +680,7 @@ public sealed class NetworkTopologyControl : FrameworkElement
                 FlowDirection.LeftToRight,
                 GlyphTypeface,
                 16.0,
-                TextPrimaryBrush,
+                _frozenPrimaryTextBrush,
                 dpi);
 
             _cachedGwLabel = new FormattedText(
@@ -604,14 +689,14 @@ public sealed class NetworkTopologyControl : FrameworkElement
                 FlowDirection.LeftToRight,
                 LabelTypeface,
                 10.0,
-                TextPrimaryBrush,
+                _frozenPrimaryTextBrush,
                 dpi);
         }
     }
 
-    private static FormattedText GetOrCreateGlyph(string glyph, double dpi)
+    private FormattedText GetOrCreateGlyph(string glyph, double dpi)
     {
-        if (GlyphCache.TryGetValue(glyph, out FormattedText? cached))
+        if (_glyphCache.TryGetValue(glyph, out FormattedText? cached))
         {
             return cached;
         }
@@ -622,10 +707,14 @@ public sealed class NetworkTopologyControl : FrameworkElement
             FlowDirection.LeftToRight,
             GlyphTypeface,
             14.0,
-            TextPrimaryBrush,
+            _frozenPrimaryTextBrush,
             dpi);
 
-        GlyphCache[glyph] = ft;
+        if (_glyphCache.Count < 128)
+        {
+            _glyphCache[glyph] = ft;
+        }
+
         return ft;
     }
 }

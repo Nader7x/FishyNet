@@ -5,52 +5,24 @@ namespace FishyNet.Controls;
 
 /// <summary>
 /// Lightweight hardware-accelerated WPF sparkline / area chart control using DrawingContext.
-/// Supports dual-series (Download + Upload) or single-series rendering with zero per-frame brush allocations.
+/// Supports dual-series (Download + Upload) or single-series rendering with bindable palette brushes
+/// and zero per-frame brush allocations.
 /// </summary>
 public sealed class SparklineControl : FrameworkElement
 {
-    private static readonly SolidColorBrush GridLineBrush;
-    private static readonly Pen GridLinePen;
-    private static readonly Pen PrimaryStrokePen;
-    private static readonly LinearGradientBrush PrimaryFillBrush;
-    private static readonly Pen SecondaryStrokePen;
-    private static readonly LinearGradientBrush SecondaryFillBrush;
+    private static readonly Color DefaultPrimaryColor = Color.FromRgb(56, 189, 248);
+    private static readonly Color DefaultSecondaryColor = Color.FromRgb(167, 139, 250);
+    private static readonly Color DefaultGridColor = Color.FromArgb(32, 148, 163, 184);
 
-    static SparklineControl()
-    {
-        GridLineBrush = new SolidColorBrush(Color.FromArgb(32, 148, 163, 184));
-        GridLineBrush.Freeze();
-        GridLinePen = new Pen(GridLineBrush, 1.0);
-        GridLinePen.Freeze();
+    private static readonly Brush DefaultPrimaryBrush = ControlRenderHelper.CreateFrozenSolidBrush(DefaultPrimaryColor);
+    private static readonly Brush DefaultSecondaryBrush = ControlRenderHelper.CreateFrozenSolidBrush(DefaultSecondaryColor);
+    private static readonly Brush DefaultGridBrush = ControlRenderHelper.CreateFrozenSolidBrush(DefaultGridColor);
 
-        // Sky (#38BDF8) for Download
-        var skyColor = Color.FromRgb(56, 189, 248);
-        var skyBrush = new SolidColorBrush(skyColor);
-        skyBrush.Freeze();
-        PrimaryStrokePen = new Pen(skyBrush, 1.8) { LineJoin = PenLineJoin.Round };
-        PrimaryStrokePen.Freeze();
-
-        PrimaryFillBrush = new LinearGradientBrush(
-            Color.FromArgb(95, 56, 189, 248),
-            Color.FromArgb(4, 56, 189, 248),
-            new Point(0, 0),
-            new Point(0, 1));
-        PrimaryFillBrush.Freeze();
-
-        // Violet (#A855F7) for Upload
-        var violetColor = Color.FromRgb(168, 85, 247);
-        var violetBrush = new SolidColorBrush(violetColor);
-        violetBrush.Freeze();
-        SecondaryStrokePen = new Pen(violetBrush, 1.5) { LineJoin = PenLineJoin.Round };
-        SecondaryStrokePen.Freeze();
-
-        SecondaryFillBrush = new LinearGradientBrush(
-            Color.FromArgb(75, 168, 85, 247),
-            Color.FromArgb(4, 168, 85, 247),
-            new Point(0, 0),
-            new Point(0, 1));
-        SecondaryFillBrush.Freeze();
-    }
+    private Pen _gridLinePen = null!;
+    private Pen _primaryStrokePen = null!;
+    private LinearGradientBrush _primaryFillBrush = null!;
+    private Pen _secondaryStrokePen = null!;
+    private LinearGradientBrush _secondaryFillBrush = null!;
 
     public static readonly DependencyProperty PrimarySeriesProperty =
         DependencyProperty.Register(
@@ -73,6 +45,27 @@ public sealed class SparklineControl : FrameworkElement
             typeof(SparklineControl),
             new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
 
+    public static readonly DependencyProperty PrimaryBrushProperty =
+        DependencyProperty.Register(
+            nameof(PrimaryBrush),
+            typeof(Brush),
+            typeof(SparklineControl),
+            new FrameworkPropertyMetadata(DefaultPrimaryBrush, FrameworkPropertyMetadataOptions.AffectsRender, OnBrushChanged));
+
+    public static readonly DependencyProperty SecondaryBrushProperty =
+        DependencyProperty.Register(
+            nameof(SecondaryBrush),
+            typeof(Brush),
+            typeof(SparklineControl),
+            new FrameworkPropertyMetadata(DefaultSecondaryBrush, FrameworkPropertyMetadataOptions.AffectsRender, OnBrushChanged));
+
+    public static readonly DependencyProperty GridLineBrushProperty =
+        DependencyProperty.Register(
+            nameof(GridLineBrush),
+            typeof(Brush),
+            typeof(SparklineControl),
+            new FrameworkPropertyMetadata(DefaultGridBrush, FrameworkPropertyMetadataOptions.AffectsRender, OnBrushChanged));
+
     public IReadOnlyList<double>? PrimarySeries
     {
         get => (IReadOnlyList<double>?)GetValue(PrimarySeriesProperty);
@@ -91,6 +84,51 @@ public sealed class SparklineControl : FrameworkElement
         set => SetValue(ShowGridLinesProperty, value);
     }
 
+    public Brush PrimaryBrush
+    {
+        get => (Brush)GetValue(PrimaryBrushProperty);
+        set => SetValue(PrimaryBrushProperty, value);
+    }
+
+    public Brush SecondaryBrush
+    {
+        get => (Brush)GetValue(SecondaryBrushProperty);
+        set => SetValue(SecondaryBrushProperty, value);
+    }
+
+    public Brush GridLineBrush
+    {
+        get => (Brush)GetValue(GridLineBrushProperty);
+        set => SetValue(GridLineBrushProperty, value);
+    }
+
+    public SparklineControl()
+    {
+        RebuildRenderResources();
+    }
+
+    private static void OnBrushChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is SparklineControl control)
+        {
+            control.RebuildRenderResources();
+        }
+    }
+
+    private void RebuildRenderResources()
+    {
+        Brush grid = ControlRenderHelper.FreezeBrush(GridLineBrush, DefaultGridBrush);
+        _gridLinePen = ControlRenderHelper.CreateFrozenPen(grid, 1.0);
+
+        Brush primary = ControlRenderHelper.FreezeBrush(PrimaryBrush, DefaultPrimaryBrush);
+        _primaryStrokePen = ControlRenderHelper.CreateFrozenPen(primary, 1.8);
+        _primaryFillBrush = ControlRenderHelper.CreateVerticalAreaFill(primary, DefaultPrimaryColor, 95, 4);
+
+        Brush secondary = ControlRenderHelper.FreezeBrush(SecondaryBrush, DefaultSecondaryBrush);
+        _secondaryStrokePen = ControlRenderHelper.CreateFrozenPen(secondary, 1.5);
+        _secondaryFillBrush = ControlRenderHelper.CreateVerticalAreaFill(secondary, DefaultSecondaryColor, 75, 4);
+    }
+
     protected override void OnRender(DrawingContext dc)
     {
         base.OnRender(dc);
@@ -101,9 +139,9 @@ public sealed class SparklineControl : FrameworkElement
 
         if (ShowGridLines)
         {
-            dc.DrawLine(GridLinePen, new Point(0, height * 0.25), new Point(width, height * 0.25));
-            dc.DrawLine(GridLinePen, new Point(0, height * 0.50), new Point(width, height * 0.50));
-            dc.DrawLine(GridLinePen, new Point(0, height * 0.75), new Point(width, height * 0.75));
+            dc.DrawLine(_gridLinePen, new Point(0, height * 0.25), new Point(width, height * 0.25));
+            dc.DrawLine(_gridLinePen, new Point(0, height * 0.50), new Point(width, height * 0.50));
+            dc.DrawLine(_gridLinePen, new Point(0, height * 0.75), new Point(width, height * 0.75));
         }
 
         IReadOnlyList<double>? primary = PrimarySeries;
@@ -111,7 +149,7 @@ public sealed class SparklineControl : FrameworkElement
 
         if ((primary is null || primary.Count < 2) && (secondary is null || secondary.Count < 2))
         {
-            dc.DrawLine(GridLinePen, new Point(0, height - 2), new Point(width, height - 2));
+            dc.DrawLine(_gridLinePen, new Point(0, height - 2), new Point(width, height - 2));
             return;
         }
 
@@ -135,12 +173,12 @@ public sealed class SparklineControl : FrameworkElement
 
         if (secondary is not null && secondary.Count >= 2)
         {
-            DrawAreaSeries(dc, secondary, width, height, maxVal, SecondaryStrokePen, SecondaryFillBrush);
+            DrawAreaSeries(dc, secondary, width, height, maxVal, _secondaryStrokePen, _secondaryFillBrush);
         }
 
         if (primary is not null && primary.Count >= 2)
         {
-            DrawAreaSeries(dc, primary, width, height, maxVal, PrimaryStrokePen, PrimaryFillBrush);
+            DrawAreaSeries(dc, primary, width, height, maxVal, _primaryStrokePen, _primaryFillBrush);
         }
     }
 
