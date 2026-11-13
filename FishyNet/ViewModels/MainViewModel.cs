@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Globalization;
 using System.IO;
@@ -23,6 +24,20 @@ public enum DeviceViewMode
     Topology
 }
 
+public enum AppSection
+{
+    LanControl,
+    AppMonitor,
+    TopologySecurity,
+    HistoryPolicies
+}
+
+public sealed record ThemePaletteOption(
+    string Id,
+    string Name,
+    string AccentHex,
+    string BackdropHex = "#07090D");
+
 public sealed class MainViewModel : ObservableObject, IDisposable
 {
     private const int MainChartPoints = 60;
@@ -36,6 +51,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly HostResolverService _hostResolver;
     private readonly TrayIconService _trayService;
 
+    private readonly Dispatcher _uiDispatcher;
     private readonly DispatcherTimer _telemetryTimer;
     private readonly CancellationTokenSource _backgroundCts = new();
     private int _ticksSinceHistoryFlush;
@@ -89,11 +105,34 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     // UI Redesign & Smart Scheduling State
     private DeviceViewMode _currentViewMode = DeviceViewMode.Table;
+    private DeviceViewMode _lastLanViewMode = DeviceViewMode.Table;
+    private AppSection _activeSection = AppSection.LanControl;
+    private bool _isSyncingSectionAndViewMode;
+    private string _themePaletteId = "obsidian_cyan";
+
     private bool _isInspectorOpen;
     private bool _isGamingBoostActive;
     private bool _isMiniHudActive;
     private string _totalSpeedTickerText = "▼ 0 B/s   ▲ 0 B/s   ● Ping —";
     private readonly Dictionary<MacAddress, (int DownCap, int UpCap, bool WasSpoofed)> _gamingBoostSavedCaps = new();
+
+    // Throttle All & Batch Selection State
+    private readonly List<DeviceViewModel> _subscribedDevices = [];
+    private int _throttleAllDownloadCapKBps = 250;
+    private int _throttleAllUploadCapKBps = 64;
+    private bool _isThrottleAllActive;
+    private bool _throttleAllKeepAppliedToNewDevices = true;
+    private int _batchDownloadCapKBps = 500;
+    private int _batchUploadCapKBps = 120;
+    private bool _suppressBatchSelectionNotifications;
+
+    public static IReadOnlyList<ThemePaletteOption> BuiltInThemePalettes { get; } =
+    [
+        new("obsidian_cyan", "Obsidian Cyan", "#22D3EE", "#07090D"),
+        new("graphite_mint", "Graphite Mint", "#10B981", "#08090B"),
+        new("carbon_cobalt", "Carbon Cobalt", "#60A5FA", "#06070B"),
+        new("smoked_onyx", "Smoked Onyx", "#E4E4E7", "#08080A")
+    ];
 
     public event Action? RequestShowWindow;
     public event Action? RequestExplicitExit;
@@ -101,12 +140,17 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public event Action? RequestMinimize;
     public event Action? RequestMaximizeRestore;
     public event Action? RequestClose;
+    public event Action<string>? ThemePaletteRequested;
+
+    internal DeviceRegistry Registry => _registry;
+    internal DeviceProfileStore ProfileStore => _profileStore;
 
     public ObservableCollection<NetworkAdapterInfo> Adapters { get; } = [];
     public ObservableCollection<DeviceViewModel> Devices { get; } = [];
     public ICollectionView FilteredDevices { get; }
 
     public IReadOnlyList<BandwidthPresetProfile> Presets => DeviceProfileStore.BuiltInPresets;
+    public IReadOnlyList<ThemePaletteOption> AvailableThemePalettes => BuiltInThemePalettes;
     public IReadOnlyList<string> Categories { get; } = ["Workstation", "Mobile", "Media/Console", "IoT", "Router", "Virtual", "Device"];
 
     public ObservableCollection<DeviceUsageSummary> HistoryDeviceSummaries { get; } = [];
@@ -138,6 +182,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand ToggleGamingBoostCommand { get; }
     public RelayCommand ToggleMiniHudCommand { get; }
     public RelayCommand SetViewModeCommand { get; }
+    public RelayCommand NavigateSectionCommand { get; }
+    public RelayCommand SelectThemePaletteCommand { get; }
     public RelayCommand ToggleInspectorCommand { get; }
     public RelayCommand CloseInspectorCommand { get; }
     public RelayCommand DeselectDeviceCommand { get; }
@@ -147,17 +193,50 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand MaximizeWindowCommand { get; }
     public RelayCommand CloseWindowCommand { get; }
 
-    public MainViewModel()
+    public RelayCommand ApplyThrottleAllCommand { get; }
+    public RelayCommand ClearAllThrottlesCommand { get; }
+    public RelayCommand ApplyThrottleAllPresetCommand { get; }
+
+    public RelayCommand ToggleSelectAllFilteredCommand { get; }
+    public RelayCommand ApplyBatchThrottleCommand { get; }
+    public RelayCommand BatchMonitorCommand { get; }
+    public RelayCommand BatchBypassCommand { get; }
+    public RelayCommand BatchBlockCommand { get; }
+    public RelayCommand BatchUnblockCommand { get; }
+    public RelayCommand BatchClearCapsCommand { get; }
+    public RelayCommand ClearBatchSelectionCommand { get; }
+
+    public MainViewModel() : this(new DeviceProfileStore())
     {
+    }
+
+    public MainViewModel(DeviceProfileStore profileStore)
+    {
+        _uiDispatcher = Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
         _registry = new DeviceRegistry();
         _engine = new CaptureEngine(_registry);
-        _profileStore = new DeviceProfileStore();
+        _profileStore = profileStore ?? new DeviceProfileStore();
         _historyStore = new UsageHistoryStore();
         _hostResolver = new HostResolverService(_registry);
         _trayService = new TrayIconService();
 
         _useBitsPerSecond = _profileStore.Preferences.UseBitsPerSecond;
         _closeToTray = _profileStore.Preferences.CloseToTray;
+        _themePaletteId = NormalizePaletteId(_profileStore.Preferences.ThemePaletteId) ?? "obsidian_cyan";
+
+        bool hasSavedThrottleAll =
+            _profileStore.Preferences.ThrottleAllEnabled ||
+            _profileStore.Preferences.ThrottleAllDownloadCapKBps > 0 ||
+            _profileStore.Preferences.ThrottleAllUploadCapKBps > 0;
+        _isThrottleAllActive = _profileStore.Preferences.ThrottleAllEnabled;
+        _throttleAllDownloadCapKBps = hasSavedThrottleAll
+            ? Math.Max(0, _profileStore.Preferences.ThrottleAllDownloadCapKBps)
+            : 250;
+        _throttleAllUploadCapKBps = hasSavedThrottleAll
+            ? Math.Max(0, _profileStore.Preferences.ThrottleAllUploadCapKBps)
+            : 64;
+
+        Devices.CollectionChanged += OnDevicesCollectionChanged;
 
         FilteredDevices = CollectionViewSource.GetDefaultView(Devices);
         FilteredDevices.Filter = FilterDevicePredicate;
@@ -227,6 +306,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 CurrentViewMode = m;
             }
         });
+        NavigateSectionCommand = new RelayCommand(ExecuteNavigateSection);
+        SelectThemePaletteCommand = new RelayCommand(ExecuteSelectThemePalette);
         ToggleInspectorCommand = new RelayCommand(() => IsInspectorOpen = !IsInspectorOpen);
         CloseInspectorCommand = new RelayCommand(() => IsInspectorOpen = false);
         DeselectDeviceCommand = new RelayCommand(() => SelectedDevice = null);
@@ -247,6 +328,19 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         MaximizeWindowCommand = new RelayCommand(() => RequestMaximizeRestore?.Invoke());
         CloseWindowCommand = new RelayCommand(() => RequestClose?.Invoke());
 
+        ApplyThrottleAllCommand = new RelayCommand(ApplyThrottleAll);
+        ClearAllThrottlesCommand = new RelayCommand(ClearAllThrottles);
+        ApplyThrottleAllPresetCommand = new RelayCommand(ExecuteApplyThrottleAllPreset);
+
+        ToggleSelectAllFilteredCommand = new RelayCommand(ToggleSelectAllFiltered);
+        ApplyBatchThrottleCommand = new RelayCommand(ExecuteApplyBatchThrottle, () => HasBatchSelection);
+        BatchMonitorCommand = new RelayCommand(ExecuteBatchMonitor, () => HasBatchSelection);
+        BatchBypassCommand = new RelayCommand(ExecuteBatchBypass, () => HasBatchSelection);
+        BatchBlockCommand = new RelayCommand(ExecuteBatchBlock, () => HasBatchSelection);
+        BatchUnblockCommand = new RelayCommand(ExecuteBatchUnblock, () => HasBatchSelection);
+        BatchClearCapsCommand = new RelayCommand(ExecuteBatchClearCaps, () => HasBatchSelection);
+        ClearBatchSelectionCommand = new RelayCommand(ClearBatchSelection, () => HasBatchSelection);
+
         _telemetryTimer = new DispatcherTimer(DispatcherPriority.Normal)
         {
             Interval = TimeSpan.FromSeconds(1)
@@ -264,9 +358,29 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(IsTableView));
                 OnPropertyChanged(nameof(IsBentoView));
                 OnPropertyChanged(nameof(IsTopologyView));
+
                 if (value == DeviceViewMode.Topology)
                 {
                     IsInspectorOpen = false;
+                }
+                else
+                {
+                    _lastLanViewMode = value;
+                }
+
+                if (!_isSyncingSectionAndViewMode)
+                {
+                    _isSyncingSectionAndViewMode = true;
+                    try
+                    {
+                        ActiveSection = value == DeviceViewMode.Topology
+                            ? AppSection.TopologySecurity
+                            : AppSection.LanControl;
+                    }
+                    finally
+                    {
+                        _isSyncingSectionAndViewMode = false;
+                    }
                 }
             }
         }
@@ -275,6 +389,166 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public bool IsTableView => CurrentViewMode == DeviceViewMode.Table;
     public bool IsBentoView => CurrentViewMode == DeviceViewMode.Bento;
     public bool IsTopologyView => CurrentViewMode == DeviceViewMode.Topology;
+
+    public AppSection ActiveSection
+    {
+        get => _activeSection;
+        set
+        {
+            if (SetProperty(ref _activeSection, value))
+            {
+                OnPropertyChanged(nameof(IsLanControlSection));
+                OnPropertyChanged(nameof(IsAppMonitorSection));
+                OnPropertyChanged(nameof(IsTopologySecuritySection));
+                OnPropertyChanged(nameof(IsHistoryPoliciesSection));
+
+                if (!_isSyncingSectionAndViewMode)
+                {
+                    _isSyncingSectionAndViewMode = true;
+                    try
+                    {
+                        if (value == AppSection.TopologySecurity)
+                        {
+                            CurrentViewMode = DeviceViewMode.Topology;
+                        }
+                        else if (value == AppSection.LanControl && CurrentViewMode == DeviceViewMode.Topology)
+                        {
+                            CurrentViewMode = _lastLanViewMode;
+                        }
+                        else if (value == AppSection.HistoryPolicies)
+                        {
+                            RefreshHistoryReport();
+                        }
+                    }
+                    finally
+                    {
+                        _isSyncingSectionAndViewMode = false;
+                    }
+                }
+            }
+        }
+    }
+
+    public bool IsLanControlSection => _activeSection == AppSection.LanControl;
+    public bool IsAppMonitorSection => _activeSection == AppSection.AppMonitor;
+    public bool IsTopologySecuritySection => _activeSection == AppSection.TopologySecurity;
+    public bool IsHistoryPoliciesSection => _activeSection == AppSection.HistoryPolicies;
+
+    public string ThemePaletteId
+    {
+        get => _themePaletteId;
+        set
+        {
+            string? normalized = NormalizePaletteId(value);
+            if (normalized is null) return;
+
+            if (SetProperty(ref _themePaletteId, normalized))
+            {
+                _profileStore.Preferences.ThemePaletteId = normalized;
+                _profileStore.Save();
+                OnPropertyChanged(nameof(SelectedThemePalette));
+                ThemePaletteRequested?.Invoke(normalized);
+            }
+        }
+    }
+
+    public ThemePaletteOption SelectedThemePalette
+    {
+        get
+        {
+            for (int i = 0; i < BuiltInThemePalettes.Count; i++)
+            {
+                if (string.Equals(BuiltInThemePalettes[i].Id, _themePaletteId, StringComparison.OrdinalIgnoreCase))
+                {
+                    return BuiltInThemePalettes[i];
+                }
+            }
+            return BuiltInThemePalettes[0];
+        }
+        set
+        {
+            if (value is not null)
+            {
+                ThemePaletteId = value.Id;
+            }
+        }
+    }
+
+    public int ThrottleAllDownloadCapKBps
+    {
+        get => _throttleAllDownloadCapKBps;
+        set => SetProperty(ref _throttleAllDownloadCapKBps, Math.Max(0, value));
+    }
+
+    public int ThrottleAllUploadCapKBps
+    {
+        get => _throttleAllUploadCapKBps;
+        set => SetProperty(ref _throttleAllUploadCapKBps, Math.Max(0, value));
+    }
+
+    public bool IsThrottleAllActive
+    {
+        get => _isThrottleAllActive;
+        private set => SetProperty(ref _isThrottleAllActive, value);
+    }
+
+    public bool ThrottleAllKeepAppliedToNewDevices
+    {
+        get => _throttleAllKeepAppliedToNewDevices;
+        set => SetProperty(ref _throttleAllKeepAppliedToNewDevices, value);
+    }
+
+    public int BatchDownloadCapKBps
+    {
+        get => _batchDownloadCapKBps;
+        set => SetProperty(ref _batchDownloadCapKBps, Math.Max(0, value));
+    }
+
+    public int BatchUploadCapKBps
+    {
+        get => _batchUploadCapKBps;
+        set => SetProperty(ref _batchUploadCapKBps, Math.Max(0, value));
+    }
+
+    public int SelectedBatchCount
+    {
+        get
+        {
+            int count = 0;
+            for (int i = 0; i < Devices.Count; i++)
+            {
+                DeviceViewModel vm = Devices[i];
+                if (vm.IsBatchSelected && vm.CanThrottle)
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+    }
+
+    public bool HasBatchSelection => SelectedBatchCount > 0;
+
+    public bool IsAllFilteredSelected
+    {
+        get
+        {
+            bool anyThrottleable = false;
+            foreach (object? item in FilteredDevices)
+            {
+                if (item is DeviceViewModel vm && vm.CanThrottle)
+                {
+                    anyThrottleable = true;
+                    if (!vm.IsBatchSelected)
+                    {
+                        return false;
+                    }
+                }
+            }
+            return anyThrottleable;
+        }
+        set => SetFilteredBatchSelection(value);
+    }
 
     public bool IsInspectorOpen
     {
@@ -362,6 +636,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             if (SetProperty(ref _searchQuery, value))
             {
                 FilteredDevices.Refresh();
+                OnPropertyChanged(nameof(IsAllFilteredSelected));
             }
         }
     }
@@ -374,6 +649,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             if (SetProperty(ref _statusFilter, value))
             {
                 FilteredDevices.Refresh();
+                OnPropertyChanged(nameof(IsAllFilteredSelected));
             }
         }
     }
@@ -752,20 +1028,25 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private void ApplyPresetToAllLanDevices(BandwidthPresetProfile preset)
     {
-        int count = 0;
-        foreach (DeviceViewModel vm in Devices)
+        var updatedModels = new List<NetworkDevice>(Devices.Count);
+        for (int i = 0; i < Devices.Count; i++)
         {
-            if (vm.CanThrottle)
-            {
-                vm.DownloadCapKBps = preset.DownloadCapKBps;
-                vm.UploadCapKBps = preset.UploadCapKBps;
-                vm.IsBlocked = preset.BlockAll;
-                vm.IsSpoofed = true;
-                count++;
-            }
+            DeviceViewModel vm = Devices[i];
+            if (!vm.CanThrottle) continue;
+
+            vm.ApplyBatchLimits(
+                preset.DownloadCapKBps,
+                preset.UploadCapKBps,
+                preset.BlockAll,
+                isSpoofed: true,
+                suppressRuleModified: true);
+            _engine.SpoofDevice(vm.Model);
+            updatedModels.Add(vm.Model);
         }
 
-        StatusMessage = $"Applied '{preset.Name}' profile to {count} LAN devices.";
+        _profileStore.UpdateBatch(updatedModels);
+        RefreshDeviceSummaryCounts();
+        StatusMessage = $"Applied '{preset.Name}' profile to {updatedModels.Count} LAN devices.";
     }
 
     private void ExecuteMonitorAll()
@@ -786,19 +1067,498 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private void ExecuteUnspoofAll()
     {
-        foreach (DeviceViewModel vm in Devices)
+        var updatedModels = new List<NetworkDevice>(Devices.Count);
+        for (int i = 0; i < Devices.Count; i++)
         {
-            if (vm.CanThrottle)
+            DeviceViewModel vm = Devices[i];
+            if (!vm.CanThrottle) continue;
+
+            vm.ApplyBatchLimits(0, 0, isBlocked: false, isSpoofed: false, suppressRuleModified: true);
+            updatedModels.Add(vm.Model);
+        }
+
+        IsThrottleAllActive = false;
+        _profileStore.Preferences.ThrottleAllEnabled = false;
+        _profileStore.UpdateBatch(updatedModels);
+        _engine.CompleteUnspoof();
+        RefreshDeviceSummaryCounts();
+        StatusMessage = "Bypassed all LAN hosts, restored ARP tables, and cleared active caps.";
+    }
+
+    private void ExecuteNavigateSection(object? parameter)
+    {
+        if (parameter is AppSection section)
+        {
+            ActiveSection = section;
+            return;
+        }
+
+        if (parameter is string str && Enum.TryParse(str, ignoreCase: true, out AppSection parsed))
+        {
+            ActiveSection = parsed;
+        }
+    }
+
+    private void ExecuteSelectThemePalette(object? parameter)
+    {
+        string? id = parameter switch
+        {
+            ThemePaletteOption opt => opt.Id,
+            string s => s,
+            _ => null
+        };
+        if (!string.IsNullOrWhiteSpace(id))
+        {
+            ThemePaletteId = id;
+        }
+    }
+
+    private static string? NormalizePaletteId(string? id)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return null;
+
+        ReadOnlySpan<char> trimmed = id.AsSpan().Trim();
+        for (int i = 0; i < BuiltInThemePalettes.Count; i++)
+        {
+            if (BuiltInThemePalettes[i].Id.AsSpan().Equals(trimmed, StringComparison.OrdinalIgnoreCase))
             {
-                vm.DownloadCapKBps = 0;
-                vm.UploadCapKBps = 0;
-                vm.IsBlocked = false;
-                vm.IsSpoofed = false;
+                return BuiltInThemePalettes[i].Id;
             }
         }
 
-        _engine.CompleteUnspoof();
-        StatusMessage = "Bypassed all LAN hosts, restored ARP tables, and cleared active caps.";
+        return null;
+    }
+
+    private void ApplyThrottleAll()
+    {
+        int dl = Math.Max(0, _throttleAllDownloadCapKBps);
+        int ul = Math.Max(0, _throttleAllUploadCapKBps);
+        bool isThrottling = dl > 0 || ul > 0;
+
+        var updatedModels = new List<NetworkDevice>(Devices.Count);
+        for (int i = 0; i < Devices.Count; i++)
+        {
+            DeviceViewModel vm = Devices[i];
+            if (!vm.CanThrottle) continue;
+
+            bool? targetSpoofed = isThrottling && !vm.IsBlocked ? true : null;
+            vm.ApplyBatchLimits(dl, ul, isBlocked: null, isSpoofed: targetSpoofed, suppressRuleModified: true);
+            if (isThrottling && vm.IsSpoofed)
+            {
+                _engine.SpoofDevice(vm.Model);
+            }
+            updatedModels.Add(vm.Model);
+        }
+
+        IsThrottleAllActive = isThrottling;
+        _profileStore.Preferences.ThrottleAllEnabled = isThrottling;
+        _profileStore.Preferences.ThrottleAllDownloadCapKBps = dl;
+        _profileStore.Preferences.ThrottleAllUploadCapKBps = ul;
+        _profileStore.UpdateBatch(updatedModels);
+        RefreshDeviceSummaryCounts();
+
+        StatusMessage = isThrottling
+            ? $"Applied Throttle All ({dl} KB/s down · {ul} KB/s up) to {updatedModels.Count} LAN devices."
+            : $"Cleared bandwidth caps across {updatedModels.Count} LAN devices.";
+    }
+
+    private void ClearAllThrottles()
+    {
+        var updatedModels = new List<NetworkDevice>(Devices.Count);
+        for (int i = 0; i < Devices.Count; i++)
+        {
+            DeviceViewModel vm = Devices[i];
+            if (!vm.CanThrottle) continue;
+
+            vm.ApplyBatchLimits(0, 0, isBlocked: null, isSpoofed: null, suppressRuleModified: true);
+            updatedModels.Add(vm.Model);
+        }
+
+        IsThrottleAllActive = false;
+        _profileStore.Preferences.ThrottleAllEnabled = false;
+        _profileStore.UpdateBatch(updatedModels);
+        RefreshDeviceSummaryCounts();
+
+        StatusMessage = $"Cleared bandwidth caps across {updatedModels.Count} LAN devices.";
+    }
+
+    private void ExecuteApplyThrottleAllPreset(object? parameter)
+    {
+        if (parameter is null) return;
+
+        if (parameter is int intCap)
+        {
+            if (intCap <= 0)
+            {
+                ClearAllThrottles();
+                return;
+            }
+
+            ThrottleAllDownloadCapKBps = intCap;
+            ApplyThrottleAll();
+            return;
+        }
+
+        if (parameter is BandwidthPresetProfile preset)
+        {
+            if (preset.BlockAll)
+            {
+                ApplyPresetToAllLanDevices(preset);
+                return;
+            }
+
+            ThrottleAllDownloadCapKBps = preset.DownloadCapKBps;
+            ThrottleAllUploadCapKBps = preset.UploadCapKBps;
+            ApplyThrottleAll();
+            return;
+        }
+
+        string? text = parameter as string ?? parameter.ToString();
+        if (string.IsNullOrWhiteSpace(text)) return;
+
+        ReadOnlySpan<char> span = text.AsSpan().Trim();
+        int sepIndex = span.IndexOfAny(':', ',', '/');
+        if (sepIndex >= 0)
+        {
+            ReadOnlySpan<char> dlSpan = span[..sepIndex].Trim();
+            ReadOnlySpan<char> ulSpan = span[(sepIndex + 1)..].Trim();
+            if (int.TryParse(dlSpan, NumberStyles.Integer, CultureInfo.InvariantCulture, out int dl) &&
+                int.TryParse(ulSpan, NumberStyles.Integer, CultureInfo.InvariantCulture, out int ul))
+            {
+                if (dl < 0 || ul < 0) return;
+                ThrottleAllDownloadCapKBps = dl;
+                ThrottleAllUploadCapKBps = ul;
+                ApplyThrottleAll();
+            }
+            return;
+        }
+
+        if (int.TryParse(span, NumberStyles.Integer, CultureInfo.InvariantCulture, out int singleDl))
+        {
+            if (singleDl < 0) return;
+            if (singleDl == 0)
+            {
+                ClearAllThrottles();
+                return;
+            }
+
+            ThrottleAllDownloadCapKBps = singleDl;
+            ApplyThrottleAll();
+        }
+    }
+
+    private void ToggleSelectAllFiltered()
+    {
+        SetFilteredBatchSelection(!IsAllFilteredSelected);
+    }
+
+    private void SetFilteredBatchSelection(bool select)
+    {
+        _suppressBatchSelectionNotifications = true;
+        try
+        {
+            foreach (object? item in FilteredDevices)
+            {
+                if (item is DeviceViewModel vm)
+                {
+                    if (select)
+                    {
+                        if (vm.CanThrottle)
+                        {
+                            vm.IsBatchSelected = true;
+                        }
+                    }
+                    else
+                    {
+                        vm.IsBatchSelected = false;
+                    }
+                }
+            }
+        }
+        finally
+        {
+            _suppressBatchSelectionNotifications = false;
+        }
+
+        NotifyBatchSelectionPropertiesChanged();
+    }
+
+    private void ClearBatchSelection()
+    {
+        _suppressBatchSelectionNotifications = true;
+        try
+        {
+            for (int i = 0; i < Devices.Count; i++)
+            {
+                Devices[i].IsBatchSelected = false;
+            }
+        }
+        finally
+        {
+            _suppressBatchSelectionNotifications = false;
+        }
+
+        NotifyBatchSelectionPropertiesChanged();
+    }
+
+    private void ExecuteApplyBatchThrottle()
+    {
+        int dl = Math.Max(0, _batchDownloadCapKBps);
+        int ul = Math.Max(0, _batchUploadCapKBps);
+        bool isThrottling = dl > 0 || ul > 0;
+
+        int count = ExecuteBatchDeviceAction(
+            dl,
+            ul,
+            isBlocked: null,
+            spoofSelector: vm => isThrottling && !vm.IsBlocked ? true : null,
+            spoofWhenMonitored: isThrottling,
+            unspoofWhenBypassed: false);
+
+        if (count > 0)
+        {
+            StatusMessage = isThrottling
+                ? $"Applied batch limits ({dl} KB/s down · {ul} KB/s up) to {count} selected devices."
+                : $"Cleared bandwidth caps for {count} selected devices.";
+        }
+    }
+
+    private void ExecuteBatchMonitor()
+    {
+        int count = ExecuteBatchDeviceAction(
+            null,
+            null,
+            null,
+            static _ => true,
+            spoofWhenMonitored: true,
+            unspoofWhenBypassed: false);
+
+        if (count > 0)
+        {
+            StatusMessage = $"Switched {count} selected devices to MONITORED state.";
+        }
+    }
+
+    private void ExecuteBatchBypass()
+    {
+        int count = ExecuteBatchDeviceAction(
+            null,
+            null,
+            null,
+            static _ => false,
+            spoofWhenMonitored: false,
+            unspoofWhenBypassed: true);
+
+        if (count > 0)
+        {
+            StatusMessage = $"Switched {count} selected devices to BYPASSED state.";
+        }
+    }
+
+    private void ExecuteBatchBlock()
+    {
+        int count = ExecuteBatchDeviceAction(
+            null,
+            null,
+            true,
+            static _ => true,
+            spoofWhenMonitored: true,
+            unspoofWhenBypassed: false);
+
+        if (count > 0)
+        {
+            StatusMessage = $"Blocked all traffic for {count} selected devices.";
+        }
+    }
+
+    private void ExecuteBatchUnblock()
+    {
+        int count = ExecuteBatchDeviceAction(
+            null,
+            null,
+            false,
+            static _ => null,
+            spoofWhenMonitored: false,
+            unspoofWhenBypassed: false);
+
+        if (count > 0)
+        {
+            StatusMessage = $"Unblocked {count} selected devices.";
+        }
+    }
+
+    private void ExecuteBatchClearCaps()
+    {
+        int count = ExecuteBatchDeviceAction(
+            0,
+            0,
+            null,
+            static _ => null,
+            spoofWhenMonitored: false,
+            unspoofWhenBypassed: false);
+
+        if (count > 0)
+        {
+            StatusMessage = $"Cleared bandwidth caps for {count} selected devices.";
+        }
+    }
+
+    private int ExecuteBatchDeviceAction(
+        int? downloadCapKBps,
+        int? uploadCapKBps,
+        bool? isBlocked,
+        Func<DeviceViewModel, bool?> spoofSelector,
+        bool spoofWhenMonitored,
+        bool unspoofWhenBypassed)
+    {
+        var updatedModels = new List<NetworkDevice>(Devices.Count);
+        for (int i = 0; i < Devices.Count; i++)
+        {
+            DeviceViewModel vm = Devices[i];
+            if (!vm.IsBatchSelected || !vm.CanThrottle) continue;
+
+            bool? targetSpoofed = spoofSelector(vm);
+            vm.ApplyBatchLimits(downloadCapKBps, uploadCapKBps, isBlocked, targetSpoofed, suppressRuleModified: true);
+
+            if (spoofWhenMonitored && vm.IsSpoofed)
+            {
+                _engine.SpoofDevice(vm.Model);
+            }
+            else if (unspoofWhenBypassed && !vm.IsSpoofed)
+            {
+                _engine.UnspoofDevice(vm.Model, burstCount: 5);
+            }
+
+            updatedModels.Add(vm.Model);
+        }
+
+        if (updatedModels.Count == 0)
+        {
+            return 0;
+        }
+
+        _profileStore.UpdateBatch(updatedModels);
+        RefreshDeviceSummaryCounts();
+        return updatedModels.Count;
+    }
+
+    private void OnDevicesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.Action == NotifyCollectionChangedAction.Reset)
+        {
+            for (int i = 0; i < _subscribedDevices.Count; i++)
+            {
+                _subscribedDevices[i].BatchSelectionChanged -= OnDeviceBatchSelectionChanged;
+            }
+            _subscribedDevices.Clear();
+        }
+        else
+        {
+            if (e.OldItems is not null)
+            {
+                foreach (object? item in e.OldItems)
+                {
+                    if (item is DeviceViewModel oldVm)
+                    {
+                        oldVm.BatchSelectionChanged -= OnDeviceBatchSelectionChanged;
+                        _subscribedDevices.Remove(oldVm);
+                    }
+                }
+            }
+
+            if (e.NewItems is not null)
+            {
+                foreach (object? item in e.NewItems)
+                {
+                    if (item is DeviceViewModel newVm)
+                    {
+                        newVm.BatchSelectionChanged -= OnDeviceBatchSelectionChanged;
+                        newVm.BatchSelectionChanged += OnDeviceBatchSelectionChanged;
+                        if (!_subscribedDevices.Contains(newVm))
+                        {
+                            _subscribedDevices.Add(newVm);
+                        }
+                    }
+                }
+            }
+        }
+
+        RefreshDeviceSummaryCounts();
+        NotifyBatchSelectionPropertiesChanged();
+    }
+
+    private void OnDeviceBatchSelectionChanged(DeviceViewModel _)
+    {
+        if (_suppressBatchSelectionNotifications) return;
+        NotifyBatchSelectionPropertiesChanged();
+    }
+
+    private void NotifyBatchSelectionPropertiesChanged()
+    {
+        OnPropertyChanged(nameof(SelectedBatchCount));
+        OnPropertyChanged(nameof(HasBatchSelection));
+        OnPropertyChanged(nameof(IsAllFilteredSelected));
+
+        ApplyBatchThrottleCommand.RaiseCanExecuteChanged();
+        BatchMonitorCommand.RaiseCanExecuteChanged();
+        BatchBypassCommand.RaiseCanExecuteChanged();
+        BatchBlockCommand.RaiseCanExecuteChanged();
+        BatchUnblockCommand.RaiseCanExecuteChanged();
+        BatchClearCapsCommand.RaiseCanExecuteChanged();
+        ClearBatchSelectionCommand.RaiseCanExecuteChanged();
+    }
+
+    private void RefreshDeviceSummaryCounts()
+    {
+        int throttled = 0;
+        int blocked = 0;
+        for (int i = 0; i < Devices.Count; i++)
+        {
+            DeviceViewModel vm = Devices[i];
+            if (vm.IsBlocked || vm.Model.IsQuotaExceeded)
+            {
+                blocked++;
+            }
+            else if (vm.DownloadCapKBps > 0 || vm.UploadCapKBps > 0)
+            {
+                throttled++;
+            }
+        }
+
+        OnlineDevicesCount = Devices.Count;
+        ThrottledDevicesCount = throttled;
+        BlockedDevicesCount = blocked;
+    }
+
+    private void ApplyThrottleAllToNewDeviceIfActive(NetworkDevice dev)
+    {
+        if (!IsThrottleAllActive || !ThrottleAllKeepAppliedToNewDevices) return;
+        if (dev.IsLocalHost || dev.IsGateway) return;
+
+        int dl = Math.Max(0, _throttleAllDownloadCapKBps);
+        int ul = Math.Max(0, _throttleAllUploadCapKBps);
+        dev.DownloadCapKBps = dl;
+        dev.UploadCapKBps = ul;
+        if ((dl > 0 || ul > 0) && !dev.IsBlocked)
+        {
+            dev.IsSpoofed = true;
+        }
+    }
+
+    private void DispatchToUiOrInline(Action action)
+    {
+        if (Application.Current is { Dispatcher: { } dispatcher })
+        {
+            dispatcher.BeginInvoke(action);
+        }
+        else if (_uiDispatcher.CheckAccess())
+        {
+            action();
+        }
+        else
+        {
+            _uiDispatcher.BeginInvoke(action);
+        }
     }
 
     private async Task WakeSelectedDeviceAsync()
@@ -923,83 +1683,24 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                vm.Hostname.Contains(q, StringComparison.OrdinalIgnoreCase);
     }
 
-    private async Task ProcessRegistryEventsAsync(CancellationToken ct)
+    internal int ProcessPendingRegistryEvents()
+    {
+        int processed = 0;
+        while (_registry.Events.TryRead(out NetworkEvent? evt))
+        {
+            HandleRegistryEvent(evt, CancellationToken.None);
+            processed++;
+        }
+        return processed;
+    }
+
+    internal async Task ProcessRegistryEventsAsync(CancellationToken ct)
     {
         try
         {
             await foreach (NetworkEvent evt in _registry.Events.ReadAllAsync(ct).ConfigureAwait(false))
             {
-                switch (evt.Kind)
-                {
-                    case NetworkEventKind.DeviceDiscovered when evt.Device is not null:
-                    {
-                        NetworkDevice dev = evt.Device;
-                        _profileStore.ApplySavedProfileToDevice(dev);
-                        _ = _hostResolver.ResolveDeviceHostnameAsync(dev, ct);
-
-                        Application.Current?.Dispatcher.BeginInvoke(() =>
-                        {
-                            if (Devices.Any(d => d.Model.Mac == dev.Mac)) return;
-
-                            var vm = new DeviceViewModel(dev, _useBitsPerSecond);
-                            vm.RuleModified += OnDeviceRuleModified;
-                            Devices.Add(vm);
-                            SelectedDevice ??= vm;
-                            OnlineDevicesCount = Devices.Count;
-
-                            if (!dev.IsLocalHost && !dev.IsGateway && _profileStore.Preferences.NotifyOnNewDevice && Devices.Count > 3)
-                            {
-                                _trayService.ShowNotification(
-                                    "New Device Connected",
-                                    $"{vm.DisplayName} ({vm.IpAddressText} · {vm.Vendor}) joined the network.");
-                            }
-                        });
-                        break;
-                    }
-
-                    case NetworkEventKind.DeviceUpdated when evt.Device is not null:
-                    {
-                        NetworkDevice dev = evt.Device;
-                        Application.Current?.Dispatcher.BeginInvoke(() =>
-                        {
-                            DeviceViewModel? vm = Devices.FirstOrDefault(d => d.Model.Mac == dev.Mac);
-                            vm?.SyncMetadataFromModel();
-                        });
-                        break;
-                    }
-
-                    case NetworkEventKind.DnsQueryObserved when evt.DnsRecord is not null:
-                    {
-                        DnsQueryRecord dns = evt.DnsRecord;
-                        Application.Current?.Dispatcher.BeginInvoke(() =>
-                        {
-                            DnsQueryLogs.Insert(0, dns);
-                            if (DnsQueryLogs.Count > 250)
-                            {
-                                DnsQueryLogs.RemoveAt(DnsQueryLogs.Count - 1);
-                            }
-                        });
-                        break;
-                    }
-
-                    case NetworkEventKind.ArpSecurityAlert when evt.SecurityAlert is not null:
-                    {
-                        ArpSecurityAlert alert = evt.SecurityAlert;
-                        Application.Current?.Dispatcher.BeginInvoke(() =>
-                        {
-                            SecurityAlerts.Insert(0, alert);
-                            IsArpAlertActive = true;
-                            ArpGuardStatusText = $"ARP ALERT: {alert.OffendingMac}";
-                            StatusMessage = alert.Description;
-
-                            if (_profileStore.Preferences.NotifyOnArpAlert)
-                            {
-                                _trayService.ShowNotification("ARP Spoof Attack Detected!", alert.Description, isWarning: true);
-                            }
-                        });
-                        break;
-                    }
-                }
+                HandleRegistryEvent(evt, ct);
             }
         }
         catch (OperationCanceledException)
@@ -1008,9 +1709,91 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    private void HandleRegistryEvent(NetworkEvent evt, CancellationToken ct)
+    {
+        switch (evt.Kind)
+        {
+            case NetworkEventKind.DeviceDiscovered when evt.Device is not null:
+            {
+                NetworkDevice dev = evt.Device;
+                _profileStore.ApplySavedProfileToDevice(dev);
+                ApplyThrottleAllToNewDeviceIfActive(dev);
+                _ = _hostResolver.ResolveDeviceHostnameAsync(dev, ct);
+
+                DispatchToUiOrInline(() =>
+                {
+                    if (Devices.Any(d => d.Model.Mac == dev.Mac)) return;
+
+                    var vm = new DeviceViewModel(dev, _useBitsPerSecond);
+                    vm.RuleModified += OnDeviceRuleModified;
+                    Devices.Add(vm);
+                    SelectedDevice ??= vm;
+                    RefreshDeviceSummaryCounts();
+
+                    if (!dev.IsLocalHost && !dev.IsGateway && dev.IsSpoofed)
+                    {
+                        _engine.SpoofDevice(dev);
+                    }
+
+                    if (!dev.IsLocalHost && !dev.IsGateway && _profileStore.Preferences.NotifyOnNewDevice && Devices.Count > 3)
+                    {
+                        _trayService.ShowNotification(
+                            "New Device Connected",
+                            $"{vm.DisplayName} ({vm.IpAddressText} · {vm.Vendor}) joined the network.");
+                    }
+                });
+                break;
+            }
+
+            case NetworkEventKind.DeviceUpdated when evt.Device is not null:
+            {
+                NetworkDevice dev = evt.Device;
+                DispatchToUiOrInline(() =>
+                {
+                    DeviceViewModel? vm = Devices.FirstOrDefault(d => d.Model.Mac == dev.Mac);
+                    vm?.SyncMetadataFromModel();
+                });
+                break;
+            }
+
+            case NetworkEventKind.DnsQueryObserved when evt.DnsRecord is not null:
+            {
+                DnsQueryRecord dns = evt.DnsRecord;
+                DispatchToUiOrInline(() =>
+                {
+                    DnsQueryLogs.Insert(0, dns);
+                    if (DnsQueryLogs.Count > 250)
+                    {
+                        DnsQueryLogs.RemoveAt(DnsQueryLogs.Count - 1);
+                    }
+                });
+                break;
+            }
+
+            case NetworkEventKind.ArpSecurityAlert when evt.SecurityAlert is not null:
+            {
+                ArpSecurityAlert alert = evt.SecurityAlert;
+                DispatchToUiOrInline(() =>
+                {
+                    SecurityAlerts.Insert(0, alert);
+                    IsArpAlertActive = true;
+                    ArpGuardStatusText = $"ARP ALERT: {alert.OffendingMac}";
+                    StatusMessage = alert.Description;
+
+                    if (_profileStore.Preferences.NotifyOnArpAlert)
+                    {
+                        _trayService.ShowNotification("ARP Spoof Attack Detected!", alert.Description, isWarning: true);
+                    }
+                });
+                break;
+            }
+        }
+    }
+
     private void OnDeviceRuleModified(DeviceViewModel vm)
     {
         _profileStore.UpdateFromDevice(vm.Model);
+        RefreshDeviceSummaryCounts();
         if (vm.CanThrottle)
         {
             if (vm.IsSpoofed)
@@ -1214,6 +1997,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         _telemetryTimer.Stop();
         _backgroundCts.Cancel();
+
+        Devices.CollectionChanged -= OnDevicesCollectionChanged;
+        for (int i = 0; i < _subscribedDevices.Count; i++)
+        {
+            _subscribedDevices[i].BatchSelectionChanged -= OnDeviceBatchSelectionChanged;
+        }
+        _subscribedDevices.Clear();
 
         // Flush any remaining historical usage deltas before exit
         foreach (NetworkDevice dev in _registry.AllDevices)

@@ -36,6 +36,10 @@ public sealed class AppPreferences
     public bool NotifyOnArpAlert { get; set; } = true;
     public bool NotifyOnQuotaExceeded { get; set; } = true;
     public string? PreferredAdapterId { get; set; }
+    public string ThemePaletteId { get; set; } = "obsidian_cyan";
+    public bool ThrottleAllEnabled { get; set; }
+    public int ThrottleAllDownloadCapKBps { get; set; }
+    public int ThrottleAllUploadCapKBps { get; set; }
     public List<SavedDeviceProfile> Devices { get; set; } = [];
     public List<string> GlobalBlockedDomains { get; set; } = [];
 }
@@ -64,6 +68,8 @@ public sealed class DeviceProfileStore
         new("strict", "Strict Throttle", "Light browsing only: 64 KB/s Down / 32 KB/s Up", 64, 32, false),
         new("quarantine", "Quarantine (Block)", "Drop all forwarded packets & DNS queries", 0, 0, true)
     ];
+
+    internal int SaveCount { get; private set; }
 
     public AppPreferences Preferences => _preferences;
 
@@ -108,6 +114,12 @@ public sealed class DeviceProfileStore
                     AppPreferences? loaded = JsonSerializer.Deserialize(json, ProfileStoreJsonContext.Default.AppPreferences);
                     if (loaded is not null)
                     {
+                        if (string.IsNullOrWhiteSpace(loaded.ThemePaletteId))
+                        {
+                            loaded.ThemePaletteId = "obsidian_cyan";
+                        }
+                        loaded.Devices ??= [];
+                        loaded.GlobalBlockedDomains ??= [];
                         _preferences = loaded;
                     }
                 }
@@ -123,23 +135,7 @@ public sealed class DeviceProfileStore
     {
         lock (_sync)
         {
-            try
-            {
-                string? dir = Path.GetDirectoryName(_filePath);
-                if (!string.IsNullOrEmpty(dir))
-                {
-                    Directory.CreateDirectory(dir);
-                }
-
-                string tmpPath = _filePath + ".tmp";
-                string json = JsonSerializer.Serialize(_preferences, ProfileStoreJsonContext.Default.AppPreferences);
-                File.WriteAllText(tmpPath, json);
-                File.Move(tmpPath, _filePath, overwrite: true);
-            }
-            catch
-            {
-                // Ignore disk write errors on read-only paths
-            }
+            SaveLocked();
         }
     }
 
@@ -150,8 +146,7 @@ public sealed class DeviceProfileStore
         string macKey = device.Mac.ToString();
         lock (_sync)
         {
-            SavedDeviceProfile? saved = _preferences.Devices.FirstOrDefault(
-                d => string.Equals(d.MacAddress, macKey, StringComparison.OrdinalIgnoreCase));
+            SavedDeviceProfile? saved = FindSavedProfileLocked(macKey);
 
             if (saved is not null)
             {
@@ -181,28 +176,86 @@ public sealed class DeviceProfileStore
     {
         if (device.IsLocalHost || device.IsGateway) return;
 
-        string macKey = device.Mac.ToString();
         lock (_sync)
         {
-            SavedDeviceProfile? existing = _preferences.Devices.FirstOrDefault(
-                d => string.Equals(d.MacAddress, macKey, StringComparison.OrdinalIgnoreCase));
+            UpsertDeviceLocked(device);
+            SaveLocked();
+        }
+    }
 
-            if (existing is null)
+    /// <summary>
+    /// Updates saved profiles for multiple devices and persists preferences in a single lock
+    /// and a single atomic temporary-file write.
+    /// </summary>
+    public void UpdateBatch(IEnumerable<NetworkDevice> devices)
+    {
+        if (devices is null) return;
+
+        lock (_sync)
+        {
+            foreach (NetworkDevice device in devices)
             {
-                existing = new SavedDeviceProfile { MacAddress = macKey };
-                _preferences.Devices.Add(existing);
+                if (device is null || device.IsLocalHost || device.IsGateway) continue;
+                UpsertDeviceLocked(device);
             }
 
-            existing.CustomNickname = device.CustomNickname;
-            existing.Category = device.DeviceCategory;
-            existing.DownloadCapKBps = device.DownloadCapKBps;
-            existing.UploadCapKBps = device.UploadCapKBps;
-            existing.IsBlocked = device.IsBlocked;
-            existing.IsSpoofed = device.IsSpoofed;
-            existing.DailyQuotaMB = device.DailyQuotaBytes / (1024L * 1024L);
-            existing.BlockedDomains = [.. device.BlockedDomains];
+            SaveLocked();
+        }
+    }
+
+    private SavedDeviceProfile? FindSavedProfileLocked(string macKey)
+    {
+        List<SavedDeviceProfile> list = _preferences.Devices;
+        for (int i = 0; i < list.Count; i++)
+        {
+            if (string.Equals(list[i].MacAddress, macKey, StringComparison.OrdinalIgnoreCase))
+            {
+                return list[i];
+            }
+        }
+        return null;
+    }
+
+    private void UpsertDeviceLocked(NetworkDevice device)
+    {
+        string macKey = device.Mac.ToString();
+        SavedDeviceProfile? existing = FindSavedProfileLocked(macKey);
+
+        if (existing is null)
+        {
+            existing = new SavedDeviceProfile { MacAddress = macKey };
+            _preferences.Devices.Add(existing);
         }
 
-        Save();
+        existing.CustomNickname = device.CustomNickname;
+        existing.Category = device.DeviceCategory;
+        existing.DownloadCapKBps = device.DownloadCapKBps;
+        existing.UploadCapKBps = device.UploadCapKBps;
+        existing.IsBlocked = device.IsBlocked;
+        existing.IsSpoofed = device.IsSpoofed;
+        existing.DailyQuotaMB = device.DailyQuotaBytes / (1024L * 1024L);
+        existing.BlockedDomains = [.. device.BlockedDomains];
+    }
+
+    private void SaveLocked()
+    {
+        try
+        {
+            string? dir = Path.GetDirectoryName(_filePath);
+            if (!string.IsNullOrEmpty(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+
+            string tmpPath = _filePath + ".tmp";
+            string json = JsonSerializer.Serialize(_preferences, ProfileStoreJsonContext.Default.AppPreferences);
+            File.WriteAllText(tmpPath, json);
+            File.Move(tmpPath, _filePath, overwrite: true);
+            SaveCount++;
+        }
+        catch
+        {
+            // Ignore disk write errors on read-only paths
+        }
     }
 }

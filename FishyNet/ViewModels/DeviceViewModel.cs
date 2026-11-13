@@ -49,10 +49,12 @@ public sealed class DeviceViewModel : ObservableObject
     private bool _isBlocked;
     private bool _isSpoofed;
     private long _dailyQuotaMB;
+    private bool _isBatchSelected;
 
     private IReadOnlyList<double> _sparklineSnapshot = Array.Empty<double>();
 
     public event Action<DeviceViewModel>? RuleModified;
+    public event Action<DeviceViewModel>? BatchSelectionChanged;
 
     public NetworkDevice Model { get; }
 
@@ -139,10 +141,103 @@ public sealed class DeviceViewModel : ObservableObject
 
     public bool IsThrottled => (DownloadCapKBps > 0 || UploadCapKBps > 0) && !IsBlocked;
 
+    /// <summary>
+    /// Batch selection checkbox state for multi-device operations (ephemeral UI state, never persisted).
+    /// </summary>
+    public bool IsBatchSelected
+    {
+        get => _isBatchSelected;
+        set
+        {
+            if (SetProperty(ref _isBatchSelected, value))
+            {
+                BatchSelectionChanged?.Invoke(this);
+            }
+        }
+    }
+
     public double DownloadCapSliderValue
     {
         get => DownloadCapKBps;
         set => DownloadCapKBps = (int)Math.Round(value);
+    }
+
+    /// <summary>
+    /// Mutates device caps, block state, and ARP spoof state in a single pass for batch/global actions
+    /// without firing per-property RuleModified disk writes.
+    /// </summary>
+    public void ApplyBatchLimits(
+        int? downloadCapKBps,
+        int? uploadCapKBps,
+        bool? isBlocked,
+        bool? isSpoofed,
+        bool suppressRuleModified = true)
+    {
+        if (!CanThrottle)
+        {
+            return;
+        }
+
+        if (downloadCapKBps.HasValue)
+        {
+            int clampedDown = Math.Max(0, downloadCapKBps.Value);
+            _downloadCapKBps = clampedDown;
+            Model.DownloadCapKBps = clampedDown;
+        }
+
+        if (uploadCapKBps.HasValue)
+        {
+            int clampedUp = Math.Max(0, uploadCapKBps.Value);
+            _uploadCapKBps = clampedUp;
+            Model.UploadCapKBps = clampedUp;
+        }
+
+        if (isBlocked.HasValue)
+        {
+            _isBlocked = isBlocked.Value;
+            Model.IsBlocked = isBlocked.Value;
+        }
+
+        if (isSpoofed.HasValue)
+        {
+            _isSpoofed = isSpoofed.Value;
+            Model.IsSpoofed = isSpoofed.Value;
+        }
+        else if (!_isSpoofed &&
+                 ((downloadCapKBps.HasValue && _downloadCapKBps > 0) ||
+                  (uploadCapKBps.HasValue && _uploadCapKBps > 0) ||
+                  isBlocked == true))
+        {
+            _isSpoofed = true;
+            Model.IsSpoofed = true;
+        }
+
+        NotifyRulePropertiesChanged();
+
+        if (!suppressRuleModified)
+        {
+            RuleModified?.Invoke(this);
+        }
+    }
+
+    /// <summary>
+    /// Synchronizes backing fields from the underlying NetworkDevice model and raises property
+    /// notifications for all rule-dependent bindings and commands.
+    /// </summary>
+    public void NotifyRulePropertiesChanged()
+    {
+        _downloadCapKBps = Model.DownloadCapKBps;
+        _uploadCapKBps = Model.UploadCapKBps;
+        _isBlocked = Model.IsBlocked;
+        _isSpoofed = Model.IsSpoofed;
+
+        OnPropertyChanged(nameof(DownloadCapKBps));
+        OnPropertyChanged(nameof(DownloadCapSliderValue));
+        OnPropertyChanged(nameof(UploadCapKBps));
+        OnPropertyChanged(nameof(IsBlocked));
+        OnPropertyChanged(nameof(IsThrottled));
+        NotifyMonitorStateChanged();
+        UpdateFormattedStrings();
     }
 
     public void RefreshExternalCaps()
@@ -152,16 +247,19 @@ public sealed class DeviceViewModel : ObservableObject
             _downloadCapKBps = Model.DownloadCapKBps;
             OnPropertyChanged(nameof(DownloadCapKBps));
             OnPropertyChanged(nameof(DownloadCapSliderValue));
+            OnPropertyChanged(nameof(IsThrottled));
         }
         if (_uploadCapKBps != Model.UploadCapKBps)
         {
             _uploadCapKBps = Model.UploadCapKBps;
             OnPropertyChanged(nameof(UploadCapKBps));
+            OnPropertyChanged(nameof(IsThrottled));
         }
         if (_isBlocked != Model.IsBlocked)
         {
             _isBlocked = Model.IsBlocked;
             OnPropertyChanged(nameof(IsBlocked));
+            OnPropertyChanged(nameof(IsThrottled));
         }
         UpdateStatusBadge();
         UpdateFormattedStrings();
