@@ -56,13 +56,32 @@
       </Component>
     </StandardDirectory>
 
-    <Feature Id="MainFeature" Title="FishyNet Application" Level="1">
+    <Component Id="StartupRegistryComponent" Directory="INSTALLFOLDER" Guid="E7B42D88-9A14-4C6B-A83D-7E9F21C04B19">
+      <RegistryValue Root="HKLM"
+                     Key="Software\Microsoft\Windows\CurrentVersion\Run"
+                     Name="FishyNet"
+                     Type="string"
+                     Value="&quot;[INSTALLFOLDER]FishyNet.exe&quot;"
+                     KeyPath="yes" />
+    </Component>
+
+    <Feature Id="MainFeature"
+             Title="FishyNet Application"
+             Level="1"
+             AllowAbsent="no"
+             ConfigurableDirectory="INSTALLFOLDER">
       <ComponentGroupRef Id="AppFiles" />
       <ComponentRef Id="ApplicationShortcut" />
       <ComponentRef Id="DesktopShortcutComponent" />
+      <Feature Id="StartupFeature"
+               Title="Launch at Windows Startup"
+               Description="Register FishyNet in Windows Startup Apps so it starts automatically when you sign in."
+               Level="1">
+        <ComponentRef Id="StartupRegistryComponent" />
+      </Feature>
     </Feature>
 
-    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+    <ui:WixUI Id="WixUI_FeatureTree" />
     <WixVariable Id="WixUILicenseRtf" Value="$(var.SetupDir)\License.rtf" />
   </Package>
 </Wix>
