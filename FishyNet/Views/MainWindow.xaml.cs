@@ -1,34 +1,26 @@
 using System.ComponentModel;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Interop;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Resources;
+using FishyNet.Core.Native;
+using FishyNet.Themes;
 using FishyNet.ViewModels;
+using Microsoft.Win32;
 
 namespace FishyNet.Views;
 
 public partial class MainWindow : Window
 {
-    private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
-    private const int DWMWA_BORDER_COLOR = 34;
-    private const int DWMWA_CAPTION_COLOR = 35;
-    private const int DWMWA_TEXT_COLOR = 36;
-    private const int DWMWA_SYSTEMBACKDROP_TYPE = 38;
-    private const int DWMSBT_TRANSIENTWINDOW = 3; // Desktop Acrylic Frosted Glass
-
-    [DllImport("dwmapi.dll")]
-    private static extern int DwmSetWindowAttribute(nint hwnd, int attr, ref int attrValue, int attrSize);
-
     private readonly MainViewModel _viewModel;
     private MiniHudWindow? _miniHudWindow;
     private bool _isExplicitExit;
     private bool _hasShownTrayNotice;
+    private bool _backdropEventsHooked;
 
     public MainWindow(MainViewModel viewModel)
     {
@@ -70,31 +62,82 @@ public partial class MainWindow : Window
 
     private void OnWindowSourceInitialized(object? sender, EventArgs e)
     {
-        try
+        HookBackdropEvents();
+        RefreshBackdrop();
+    }
+
+    private void HookBackdropEvents()
+    {
+        if (_backdropEventsHooked)
         {
-            nint hwnd = new WindowInteropHelper(this).Handle;
-            if (hwnd == nint.Zero) return;
-
-            // Enable dark mode titlebar on Windows 10/11
-            int darkMode = 1;
-            _ = DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref darkMode, sizeof(int));
-
-            // Solid matte basalt caption color (COLORREF 0x00BBGGRR -> #111317 = 0x00171311)
-            int captionColor = 0x00171311;
-            _ = DwmSetWindowAttribute(hwnd, DWMWA_CAPTION_COLOR, ref captionColor, sizeof(int));
-
-            // Crisp text color (#F8FAFC = 0x00FCFAF8)
-            int textColor = 0x00FCFAF8;
-            _ = DwmSetWindowAttribute(hwnd, DWMWA_TEXT_COLOR, ref textColor, sizeof(int));
-
-            // 1px solid hairline border (#2A2E38 = 0x00382E2A)
-            int borderColor = 0x00382E2A;
-            _ = DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, ref borderColor, sizeof(int));
+            return;
         }
-        catch
+
+        _backdropEventsHooked = true;
+        ThemeManager.PaletteChanged += OnPaletteChanged;
+        SystemParameters.StaticPropertyChanged += OnSystemParametersChanged;
+        SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
+    }
+
+    private void UnhookBackdropEvents()
+    {
+        if (!_backdropEventsHooked)
         {
-            // Ignore on older OS builds
+            return;
         }
+
+        _backdropEventsHooked = false;
+        ThemeManager.PaletteChanged -= OnPaletteChanged;
+        SystemParameters.StaticPropertyChanged -= OnSystemParametersChanged;
+        SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
+    }
+
+    private void OnPaletteChanged(string paletteId)
+    {
+        QueueBackdropRefresh();
+    }
+
+    private void OnSystemParametersChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (string.IsNullOrEmpty(e.PropertyName)
+            || e.PropertyName == nameof(SystemParameters.HighContrast))
+        {
+            QueueBackdropRefresh();
+        }
+    }
+
+    private void OnUserPreferenceChanged(object? sender, UserPreferenceChangedEventArgs e)
+    {
+        if (e.Category is UserPreferenceCategory.General
+            or UserPreferenceCategory.Color
+            or UserPreferenceCategory.VisualStyle
+            or UserPreferenceCategory.Accessibility)
+        {
+            QueueBackdropRefresh();
+        }
+    }
+
+    private void QueueBackdropRefresh()
+    {
+        if (Dispatcher.CheckAccess())
+        {
+            RefreshBackdrop();
+        }
+        else
+        {
+            _ = Dispatcher.InvokeAsync(RefreshBackdrop);
+        }
+    }
+
+    private void RefreshBackdrop()
+    {
+        if (new WindowInteropHelper(this).Handle == nint.Zero)
+        {
+            return;
+        }
+
+        SetResourceReference(BackgroundProperty, "WindowBackdropBrush");
+        DwmBackdropHelper.ApplyBackdrop(this);
     }
 
     private void TryLoadWindowIcon()
@@ -163,6 +206,12 @@ public partial class MainWindow : Window
         base.OnClosing(e);
     }
 
+    protected override void OnClosed(EventArgs e)
+    {
+        UnhookBackdropEvents();
+        base.OnClosed(e);
+    }
+
     public void RestoreFromTray()
     {
         Show();
@@ -200,11 +249,42 @@ public partial class MainWindow : Window
 
     private void CapTextBox_KeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Enter && sender is TextBox tb)
+        if (sender is not TextBox tb)
+        {
+            return;
+        }
+
+        if (e.Key == Key.Enter)
+        {
+            CommitNumericTextBox(tb);
+            tb.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
         {
             BindingExpression? binding = tb.GetBindingExpression(TextBox.TextProperty);
-            binding?.UpdateSource();
-            tb.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
+            binding?.UpdateTarget();
+            Keyboard.ClearFocus();
+            e.Handled = true;
         }
+    }
+
+    private void CapTextBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (sender is TextBox tb)
+        {
+            CommitNumericTextBox(tb);
+        }
+    }
+
+    private static void CommitNumericTextBox(TextBox tb)
+    {
+        if (string.IsNullOrWhiteSpace(tb.Text))
+        {
+            tb.Text = "0";
+        }
+
+        BindingExpression? binding = tb.GetBindingExpression(TextBox.TextProperty);
+        binding?.UpdateSource();
     }
 }

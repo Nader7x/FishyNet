@@ -1,0 +1,1031 @@
+<UserControl x:Class="FishyNet.Views.AppMonitorView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FishyNet.Controls"
+             xmlns:themes="clr-namespace:FishyNet.Themes"
+             xmlns:monitor="clr-namespace:FishyNet.Features.AppMonitor"
+             FontFamily="{StaticResource SansFont}"
+             Foreground="{DynamicResource TextPrimaryBrush}">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Row 0: Sub-toolbar (Tabs, Source Filter, Counters, Search, Clear History) -->
+        <Border Grid.Row="0"
+                Style="{StaticResource FrostedGlassCardStyle}"
+                CornerRadius="14"
+                Padding="10,7"
+                Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Segmented Section Tabs -->
+                <Border Grid.Column="0"
+                        Background="{DynamicResource ControlFillBrush}"
+                        BorderBrush="{DynamicResource SubtleBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="3">
+                    <StackPanel Orientation="Horizontal">
+                        <Button Style="{StaticResource GlassSegmentButtonStyle}"
+                                themes:ThemeManager.IsActive="{Binding IsAppsTab}"
+                                Command="{Binding SelectTabCommand}"
+                                CommandParameter="Apps"
+                                Padding="12,5"
+                                Content="Apps" />
+                        <Button Style="{StaticResource GlassSegmentButtonStyle}"
+                                themes:ThemeManager.IsActive="{Binding IsWebsitesTab}"
+                                Command="{Binding SelectTabCommand}"
+                                CommandParameter="Websites"
+                                Padding="12,5"
+                                Margin="2,0,0,0"
+                                Content="Websites / Domains" />
+                        <Button Style="{StaticResource GlassSegmentButtonStyle}"
+                                themes:ThemeManager.IsActive="{Binding IsTrafficTypesTab}"
+                                Command="{Binding SelectTabCommand}"
+                                CommandParameter="TrafficTypes"
+                                Padding="12,5"
+                                Margin="2,0,0,0"
+                                Content="Traffic Types" />
+                        <Button Style="{StaticResource GlassSegmentButtonStyle}"
+                                themes:ThemeManager.IsActive="{Binding IsAlertsTab}"
+                                Command="{Binding SelectTabCommand}"
+                                CommandParameter="Alerts"
+                                Padding="12,5"
+                                Margin="2,0,0,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Alerts" VerticalAlignment="Center" />
+                                <Border Margin="6,0,0,0"
+                                        Padding="6,1"
+                                        CornerRadius="999"
+                                        Background="{DynamicResource WarnSurfaceBrush}"
+                                        BorderBrush="{DynamicResource WarnAccentBrush}"
+                                        BorderThickness="1"
+                                        Visibility="{Binding HasUnacknowledgedAlerts, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="{Binding UnacknowledgedAlertCount}"
+                                               FontFamily="{StaticResource MonoFont}"
+                                               FontSize="10"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource WarnAccentBrush}" />
+                                </Border>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Border>
+
+                <!-- Source Filter Pills (All LAN Devices vs This PC) -->
+                <Border Grid.Column="1"
+                        Margin="10,0,0,0"
+                        Background="{DynamicResource ControlFillBrush}"
+                        BorderBrush="{DynamicResource SubtleBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="3">
+                    <StackPanel Orientation="Horizontal">
+                        <Button Style="{StaticResource GlassSegmentButtonStyle}"
+                                themes:ThemeManager.IsActive="{Binding IsAllLanSource}"
+                                Command="{Binding SetSourceFilterCommand}"
+                                CommandParameter="All"
+                                Padding="11,5"
+                                FontSize="11.5"
+                                Content="All LAN Devices" />
+                        <Button Style="{StaticResource GlassSegmentButtonStyle}"
+                                themes:ThemeManager.IsActive="{Binding IsThisPcSource}"
+                                Command="{Binding SetSourceFilterCommand}"
+                                CommandParameter="ThisPC"
+                                Padding="11,5"
+                                FontSize="11.5"
+                                Margin="2,0,0,0"
+                                Content="This PC" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Live Summary Micro-Telemetry -->
+                <StackPanel Grid.Column="2"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center"
+                            HorizontalAlignment="Right"
+                            Margin="12,0">
+                    <Border Style="{StaticResource GlassPillBadgeStyle}" Margin="0,0,6,0" Padding="9,4">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding ActiveAppCount}"
+                                       FontFamily="{StaticResource MonoFont}"
+                                       FontWeight="SemiBold"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource AppMonitorAccentBrush}" />
+                            <TextBlock Text=" apps"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextMutedBrush}" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource GlassPillBadgeStyle}" Padding="9,4">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding UniqueDomainCount}"
+                                       FontFamily="{StaticResource MonoFont}"
+                                       FontWeight="SemiBold"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource WebMonitorAccentBrush}" />
+                            <TextBlock Text=" domains"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextMutedBrush}" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Search + Clear History -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Grid Width="230" Margin="0,0,8,0">
+                        <TextBox x:Name="MonitorSearchBox"
+                                 Style="{StaticResource DarkTextBoxStyle}"
+                                 Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged}"
+                                 Padding="10,5"
+                                 VerticalContentAlignment="Center" />
+                        <TextBlock Text="Filter apps, domains, hosts..."
+                                   IsHitTestVisible="False"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   FontSize="11.5"
+                                   Margin="12,0,10,0"
+                                   VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SearchQuery}" Value="">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding SearchQuery}" Value="{x:Null}">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                    <Button Style="{StaticResource DangerChipButtonStyle}"
+                            Command="{Binding ClearMonitorHistoryCommand}"
+                            Content="Clear History"
+                            ToolTip="Reset recorded timeline buckets, app flows, domains, and monitor alerts" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Row 1: Contextual Security / First-Access Alert Banner -->
+        <Border Grid.Row="1"
+                CornerRadius="12"
+                BorderThickness="1"
+                Padding="12,8"
+                Margin="0,0,0,10"
+                Visibility="{Binding HasBannerAlert, Converter={StaticResource BoolToVis}}">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Background" Value="{DynamicResource ActiveAccentDimBrush}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource ActiveAccentBrush}" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding LatestBannerAlert.Severity}" Value="{x:Static monitor:MonitorAlertSeverity.Warning}">
+                            <Setter Property="Background" Value="{DynamicResource WarnSurfaceBrush}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource WarnAccentBrush}" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding LatestBannerAlert.Severity}" Value="{x:Static monitor:MonitorAlertSeverity.Critical}">
+                            <Setter Property="Background" Value="{DynamicResource DangerSurfaceBrush}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource DangerAccentBrush}" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0"
+                        CornerRadius="999"
+                        Padding="8,3"
+                        Margin="0,0,10,0"
+                        VerticalAlignment="Center"
+                        Background="{DynamicResource GlassSurfaceElevatedBrush}"
+                        BorderBrush="{DynamicResource GlassSpecularRimBrush}"
+                        BorderThickness="1">
+                    <TextBlock Text="{Binding LatestBannerAlert.KindLabel}"
+                               FontSize="10.5"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                </Border>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding LatestBannerAlert.Title}"
+                                   FontWeight="SemiBold"
+                                   FontSize="12.5"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+                        <TextBlock Text="{Binding LatestBannerAlert.TimestampLocalText}"
+                                   FontFamily="{StaticResource MonoFont}"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   Margin="10,1,0,0" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding LatestBannerAlert.Description}"
+                               FontSize="11.5"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               TextTrimming="CharacterEllipsis"
+                               Margin="0,2,0,0" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+                    <Button Style="{StaticResource GlassChipButtonStyle}"
+                            Command="{Binding AcknowledgeAlertCommand}"
+                            CommandParameter="{Binding LatestBannerAlert}"
+                            Content="Acknowledge"
+                            Margin="0,0,6,0" />
+                    <Button Style="{StaticResource GlassChipButtonStyle}"
+                            Command="{Binding AcknowledgeAllAlertsCommand}"
+                            Content="Ack All" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Row 2: Hero Frosted Card — Live Stacked Traffic Timeline & Time Machine -->
+        <Border Grid.Row="2"
+                Style="{StaticResource FrostedGlassCardStyle}"
+                CornerRadius="14"
+                Padding="14,10"
+                Margin="0,0,0,10">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="195" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!-- Top Telemetry & Inspect Controls -->
+                <Grid Grid.Row="0" Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="TRAFFIC TIMELINE"
+                                   FontSize="11"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   VerticalAlignment="Center" />
+                        <Border Style="{StaticResource GlassPillBadgeStyle}" Margin="10,0,0,0" Padding="8,3">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Peak " FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" />
+                                <TextBlock Text="{Binding PeakTrafficText}"
+                                           FontFamily="{StaticResource MonoFont}"
+                                           FontSize="10.5"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Border Style="{StaticResource GlassPillBadgeStyle}"
+                                Padding="10,3"
+                                Visibility="{Binding InspectedSummary, Converter={StaticResource NullToVis}}">
+                            <TextBlock Text="{Binding InspectedSummary}"
+                                       FontFamily="{StaticResource MonoFont}"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource ActiveAccentBrush}"
+                                       TextTrimming="CharacterEllipsis"
+                                       MaxWidth="460" />
+                        </Border>
+                        <Button Style="{StaticResource GlassChipButtonStyle}"
+                                themes:ThemeManager.IsActive="True"
+                                Command="{Binding UnlockInspectCommand}"
+                                Content="Unlock Playhead"
+                                Margin="8,0,0,0"
+                                Padding="10,3"
+                                Visibility="{Binding IsInspectLocked, Converter={StaticResource BoolToVis}}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Style="{StaticResource GlassPillBadgeStyle}" Margin="0,0,6,0" Padding="9,3">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Width="6" Height="6" Fill="{DynamicResource RxAccentBrush}" VerticalAlignment="Center" Margin="0,0,5,0" />
+                                <TextBlock Text="RX " FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" />
+                                <TextBlock Text="{Binding WindowTotalRxText}"
+                                           FontFamily="{StaticResource MonoFont}"
+                                           FontSize="10.5"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource RxAccentBrush}" />
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource GlassPillBadgeStyle}" Padding="9,3">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Width="6" Height="6" Fill="{DynamicResource TxAccentBrush}" VerticalAlignment="Center" Margin="0,0,5,0" />
+                                <TextBlock Text="TX " FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" />
+                                <TextBlock Text="{Binding WindowTotalTxText}"
+                                           FontFamily="{StaticResource MonoFont}"
+                                           FontSize="10.5"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TxAccentBrush}" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Stacked Timeline Canvas -->
+                <controls:StackedTrafficTimelineControl Grid.Row="1"
+                                                        Buckets="{Binding TimelineBuckets}"
+                                                        SeriesDescriptors="{Binding TimelineSeries}"
+                                                        AlertMarkers="{Binding TimelineAlerts}"
+                                                        InspectedIndex="{Binding InspectedIndex, Mode=TwoWay}"
+                                                        HoveredIndex="{Binding HoveredIndex, Mode=TwoWay}"
+                                                        IsInspectLocked="{Binding IsInspectLocked, Mode=TwoWay}"
+                                                        UseBitsPerSecond="{Binding DataContext.UseBitsPerSecond, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=False}"
+                                                        ShowLegend="True" />
+
+                <!-- Bottom Time Machine Scrubber Selector -->
+                <Grid Grid.Row="2" Margin="0,8,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="TIME MACHINE"
+                                   FontSize="10.5"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Text="Hover graph to scrub · Click any bucket to lock inspect"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   Margin="10,0,0,0"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+
+                    <Border Grid.Column="2"
+                            Background="{DynamicResource ControlFillBrush}"
+                            BorderBrush="{DynamicResource SubtleBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="999"
+                            Padding="3">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Style="{StaticResource GlassChipButtonStyle}"
+                                    themes:ThemeManager.IsActive="{Binding IsLiveWindow}"
+                                    Command="{Binding SelectTimeWindowCommand}"
+                                    CommandParameter="Live"
+                                    Padding="11,3"
+                                    Content="Live" />
+                            <Button Style="{StaticResource GlassChipButtonStyle}"
+                                    themes:ThemeManager.IsActive="{Binding IsFiveMinutesWindow}"
+                                    Command="{Binding SelectTimeWindowCommand}"
+                                    CommandParameter="5m"
+                                    Padding="11,3"
+                                    Margin="3,0,0,0"
+                                    Content="5m" />
+                            <Button Style="{StaticResource GlassChipButtonStyle}"
+                                    themes:ThemeManager.IsActive="{Binding IsOneHourWindow}"
+                                    Command="{Binding SelectTimeWindowCommand}"
+                                    CommandParameter="1h"
+                                    Padding="11,3"
+                                    Margin="3,0,0,0"
+                                    Content="1h" />
+                            <Button Style="{StaticResource GlassChipButtonStyle}"
+                                    themes:ThemeManager.IsActive="{Binding IsTwentyFourHoursWindow}"
+                                    Command="{Binding SelectTimeWindowCommand}"
+                                    CommandParameter="24h"
+                                    Padding="11,3"
+                                    Margin="3,0,0,0"
+                                    Content="24h" />
+                            <Button Style="{StaticResource GlassChipButtonStyle}"
+                                    themes:ThemeManager.IsActive="{Binding IsSevenDaysWindow}"
+                                    Command="{Binding SelectTimeWindowCommand}"
+                                    CommandParameter="7d"
+                                    Padding="11,3"
+                                    Margin="3,0,0,0"
+                                    Content="7d" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- Row 3: Sub-view Content Cards (Apps, Websites, Traffic Types, Alerts) -->
+        <Grid Grid.Row="3">
+            <!-- TAB 1: APPLICATIONS -->
+            <Border Style="{StaticResource FrostedGlassCardStyle}"
+                    CornerRadius="14"
+                    Padding="0"
+                    Visibility="{Binding IsAppsTab, Converter={StaticResource BoolToVis}}">
+                <Grid themes:ThemeManager.ClipCornerRadius="{StaticResource RadiusCardClipValue}">
+                    <DataGrid Style="{StaticResource FramelessDataGridStyle}"
+                              ItemsSource="{Binding Applications}"
+                              SelectedItem="{Binding SelectedApplication, Mode=TwoWay}"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              RowHeight="46">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Header="Application" Width="2.1*" SortMemberPath="DisplayName">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Grid VerticalAlignment="Center">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0"
+                                                    Width="26" Height="26"
+                                                    CornerRadius="7"
+                                                    Background="{DynamicResource ControlFillBrush}"
+                                                    BorderBrush="{DynamicResource SubtleBorderBrush}"
+                                                    BorderThickness="1"
+                                                    Margin="0,0,10,0">
+                                                <Image Source="{Binding Icon}" Width="18" Height="18" Stretch="Uniform" />
+                                            </Border>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding DisplayName}"
+                                                               FontWeight="SemiBold"
+                                                               FontSize="12.5"
+                                                               Foreground="{DynamicResource TextPrimaryBrush}"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               MaxWidth="220" />
+                                                    <Border Margin="6,0,0,0"
+                                                            Padding="6,1"
+                                                            CornerRadius="999"
+                                                            Background="{DynamicResource HealthySurfaceBrush}"
+                                                            BorderBrush="{DynamicResource HealthyAccentBrush}"
+                                                            BorderThickness="1"
+                                                            Visibility="{Binding IsNewFirstAccess, Converter={StaticResource BoolToVis}}">
+                                                        <TextBlock Text="NEW"
+                                                                   FontSize="9.5"
+                                                                   FontWeight="Bold"
+                                                                   Foreground="{DynamicResource HealthyAccentBrush}" />
+                                                    </Border>
+                                                    <Border Margin="6,0,0,0"
+                                                            Padding="6,1"
+                                                            CornerRadius="999"
+                                                            Background="{DynamicResource DangerSurfaceBrush}"
+                                                            BorderBrush="{DynamicResource DangerAccentBrush}"
+                                                            BorderThickness="1"
+                                                            Visibility="{Binding IsFirewallBlocked, Converter={StaticResource BoolToVis}}">
+                                                        <TextBlock Text="BLOCKED"
+                                                                   FontSize="9.5"
+                                                                   FontWeight="Bold"
+                                                                   Foreground="{DynamicResource DangerAccentBrush}" />
+                                                    </Border>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal" Margin="0,1,0,0">
+                                                    <TextBlock Text="{Binding AppName}"
+                                                               FontFamily="{StaticResource MonoFont}"
+                                                               FontSize="10.5"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                    <TextBlock Text=" · "
+                                                               FontSize="10.5"
+                                                               Foreground="{DynamicResource TextMutedBrush}"
+                                                               Visibility="{Binding Publisher, Converter={StaticResource NullToVis}}" />
+                                                    <TextBlock Text="{Binding Publisher}"
+                                                               FontSize="10.5"
+                                                               Foreground="{DynamicResource TextMutedBrush}"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               MaxWidth="220"
+                                                               ToolTip="{Binding ExePath}" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTemplateColumn Header="Download" Width="125" SortMemberPath="DownloadRateText">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding DownloadRateText}"
+                                                       FontFamily="{StaticResource MonoFont}"
+                                                       FontWeight="SemiBold"
+                                                       FontSize="12"
+                                                       Foreground="{DynamicResource RxAccentBrush}" />
+                                            <ProgressBar Value="{Binding BandwidthShareRatio, Mode=OneWay}"
+                                                         Minimum="0" Maximum="1"
+                                                         Height="3"
+                                                         Margin="0,4,0,0"
+                                                         Foreground="{DynamicResource RxAccentBrush}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTemplateColumn Header="Upload" Width="105" SortMemberPath="UploadRateText">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding UploadRateText}"
+                                                   FontFamily="{StaticResource MonoFont}"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="12"
+                                                   Foreground="{DynamicResource TxAccentBrush}"
+                                                   VerticalAlignment="Center" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTextColumn Header="Total"
+                                                Width="95"
+                                                Binding="{Binding TotalVolumeText}"
+                                                FontFamily="{StaticResource MonoFont}" />
+
+                            <DataGridTemplateColumn Header="Protocols" Width="135" SortMemberPath="ProtocolSummary">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding ProtocolSummary}"
+                                                       FontSize="11.5"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <TextBlock FontFamily="{StaticResource MonoFont}"
+                                                       FontSize="10"
+                                                       Foreground="{DynamicResource TextMutedBrush}">
+                                                <Run Text="{Binding ActiveConnections, Mode=OneWay}" />
+                                                <Run Text=" active conns" />
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTextColumn Header="Top Hosts"
+                                                Width="1.4*"
+                                                Binding="{Binding TopHostsText}"
+                                                Foreground="{DynamicResource TextSecondaryBrush}" />
+
+                            <DataGridTemplateColumn Header="Firewall" Width="155">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button Command="{Binding DataContext.ToggleBlockAppCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    IsEnabled="{Binding CanBlockFirewall}"
+                                                    Content="{Binding BlockButtonText}"
+                                                    Padding="11,4">
+                                                <Button.Style>
+                                                    <Style TargetType="Button" BasedOn="{StaticResource GlassChipButtonStyle}">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsFirewallBlocked}" Value="True">
+                                                                <Setter Property="Background" Value="{DynamicResource DangerSurfaceBrush}" />
+                                                                <Setter Property="BorderBrush" Value="{DynamicResource DangerAccentBrush}" />
+                                                                <Setter Property="Foreground" Value="{DynamicResource DangerAccentBrush}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+                                            <Button Style="{StaticResource GlassChipButtonStyle}"
+                                                    Command="{Binding DataContext.AcknowledgeAppCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    Content="Ack"
+                                                    Padding="9,4"
+                                                    Margin="6,0,0,0"
+                                                    Visibility="{Binding IsNewFirstAccess, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <TextBlock Text="No application network flows observed in this Time Machine window yet."
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               FontSize="13"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               IsHitTestVisible="False"
+                               Visibility="{Binding Applications.Count, Converter={StaticResource CountZeroToVis}}" />
+                </Grid>
+            </Border>
+
+            <!-- TAB 2: WEBSITES / DOMAINS -->
+            <Border Style="{StaticResource FrostedGlassCardStyle}"
+                    CornerRadius="14"
+                    Padding="0"
+                    Visibility="{Binding IsWebsitesTab, Converter={StaticResource BoolToVis}}">
+                <Grid themes:ThemeManager.ClipCornerRadius="{StaticResource RadiusCardClipValue}">
+                    <DataGrid Style="{StaticResource FramelessDataGridStyle}"
+                              ItemsSource="{Binding Websites}"
+                              SelectedItem="{Binding SelectedWebsite, Mode=TwoWay}"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              RowHeight="42">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Header="Domain" Width="1.8*" SortMemberPath="Domain">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Domain}"
+                                                       FontWeight="SemiBold"
+                                                       FontSize="12.5"
+                                                       Foreground="{DynamicResource WebMonitorAccentBrush}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <Border Margin="8,0,0,0"
+                                                    Padding="6,1"
+                                                    CornerRadius="999"
+                                                    Background="{DynamicResource DangerSurfaceBrush}"
+                                                    BorderBrush="{DynamicResource DangerAccentBrush}"
+                                                    BorderThickness="1"
+                                                    Visibility="{Binding IsSinkholed, Converter={StaticResource BoolToVis}}">
+                                                <TextBlock Text="SINKHOLED"
+                                                           FontSize="9.5"
+                                                           FontWeight="Bold"
+                                                           Foreground="{DynamicResource DangerAccentBrush}" />
+                                            </Border>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTextColumn Header="Resolved IP"
+                                                Width="125"
+                                                Binding="{Binding ResolvedIp}"
+                                                FontFamily="{StaticResource MonoFont}" />
+                            <DataGridTextColumn Header="Protocol / Port"
+                                                Width="120"
+                                                Binding="{Binding ProtocolPort}"
+                                                FontFamily="{StaticResource MonoFont}" />
+                            <DataGridTemplateColumn Header="Source Host" Width="1.1*" SortMemberPath="SourceHost">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding SourceHost}"
+                                                       FontSize="12"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding SourceHostIp}"
+                                                       FontFamily="{StaticResource MonoFont}"
+                                                       FontSize="10"
+                                                       Foreground="{DynamicResource TextMutedBrush}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Application"
+                                                Width="135"
+                                                Binding="{Binding AppName}" />
+                            <DataGridTextColumn Header="Volume"
+                                                Width="90"
+                                                Binding="{Binding TotalVolumeText}"
+                                                FontFamily="{StaticResource MonoFont}" />
+                            <DataGridTextColumn Header="Hits"
+                                                Width="70"
+                                                Binding="{Binding HitCount}"
+                                                FontFamily="{StaticResource MonoFont}" />
+                            <DataGridTextColumn Header="Last Seen"
+                                                Width="90"
+                                                Binding="{Binding LastSeenText}"
+                                                FontFamily="{StaticResource MonoFont}"
+                                                Foreground="{DynamicResource TextMutedBrush}" />
+
+                            <DataGridTemplateColumn Header="DNS Sinkhole" Width="115">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Command="{Binding DataContext.ToggleSinkholeDomainCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"
+                                                Content="{Binding SinkholeButtonText}"
+                                                Padding="11,4">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource GlassChipButtonStyle}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsSinkholed}" Value="True">
+                                                            <Setter Property="Background" Value="{DynamicResource DangerSurfaceBrush}" />
+                                                            <Setter Property="BorderBrush" Value="{DynamicResource DangerAccentBrush}" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource DangerAccentBrush}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <TextBlock Text="No website or DNS/SNI domain lookups captured for this filter yet."
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               FontSize="13"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               IsHitTestVisible="False"
+                               Visibility="{Binding Websites.Count, Converter={StaticResource CountZeroToVis}}" />
+                </Grid>
+            </Border>
+
+            <!-- TAB 3: TRAFFIC TYPES BREAKDOWN -->
+            <Border Style="{StaticResource FrostedGlassCardStyle}"
+                    CornerRadius="14"
+                    Padding="0"
+                    Visibility="{Binding IsTrafficTypesTab, Converter={StaticResource BoolToVis}}">
+                <Grid themes:ThemeManager.ClipCornerRadius="{StaticResource RadiusCardClipValue}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0"
+                            BorderBrush="{DynamicResource SubtleBorderBrush}"
+                            BorderThickness="0,0,0,1"
+                            Padding="16,11">
+                        <Grid>
+                            <TextBlock Text="PROTOCOL &amp; TRAFFIC CLASSIFICATION"
+                                       FontSize="11.5"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       VerticalAlignment="Center" />
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <TextBlock Text="Live Apps RX " FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                                <TextBlock Text="{Binding TotalAppDownloadRateText}"
+                                           FontFamily="{StaticResource MonoFont}"
+                                           FontSize="11"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource RxAccentBrush}" />
+                                <TextBlock Text="  ·  TX " FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                                <TextBlock Text="{Binding TotalAppUploadRateText}"
+                                           FontFamily="{StaticResource MonoFont}"
+                                           FontSize="11"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TxAccentBrush}" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding TrafficTypes}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="{DynamicResource SubtleBorderBrush}"
+                                            BorderThickness="0,0,0,1"
+                                            Padding="16,12">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="210" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="95" />
+                                                <ColumnDefinition Width="105" />
+                                                <ColumnDefinition Width="105" />
+                                                <ColumnDefinition Width="105" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding TypeName}"
+                                                           FontSize="13"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                <TextBlock FontFamily="{StaticResource MonoFont}"
+                                                           FontSize="10.5"
+                                                           Foreground="{DynamicResource TextMutedBrush}"
+                                                           Margin="0,2,0,0">
+                                                    <Run Text="{Binding EntryCount, Mode=OneWay}" />
+                                                    <Run Text=" flows" />
+                                                </TextBlock>
+                                            </StackPanel>
+
+                                            <ProgressBar Grid.Column="1"
+                                                         Value="{Binding ShareRatio, Mode=OneWay}"
+                                                         Minimum="0" Maximum="1"
+                                                         Height="7"
+                                                         Margin="14,0"
+                                                         VerticalAlignment="Center"
+                                                         Foreground="{DynamicResource AppMonitorAccentBrush}" />
+
+                                            <TextBlock Grid.Column="2"
+                                                       Text="{Binding SharePercentText}"
+                                                       FontFamily="{StaticResource MonoFont}"
+                                                       FontWeight="SemiBold"
+                                                       FontSize="12.5"
+                                                       Foreground="{DynamicResource ActiveAccentBrush}"
+                                                       HorizontalAlignment="Right"
+                                                       VerticalAlignment="Center" />
+
+                                            <StackPanel Grid.Column="3" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                <TextBlock Text="DL" FontSize="9.5" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Right" />
+                                                <TextBlock Text="{Binding DownloadVolumeText}"
+                                                           FontFamily="{StaticResource MonoFont}"
+                                                           FontSize="12"
+                                                           Foreground="{DynamicResource RxAccentBrush}" />
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="4" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                <TextBlock Text="UL" FontSize="9.5" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Right" />
+                                                <TextBlock Text="{Binding UploadVolumeText}"
+                                                           FontFamily="{StaticResource MonoFont}"
+                                                           FontSize="12"
+                                                           Foreground="{DynamicResource TxAccentBrush}" />
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="5" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                <TextBlock Text="TOTAL" FontSize="9.5" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Right" />
+                                                <TextBlock Text="{Binding TotalVolumeText}"
+                                                           FontFamily="{StaticResource MonoFont}"
+                                                           FontWeight="SemiBold"
+                                                           FontSize="12.5"
+                                                           Foreground="{DynamicResource TextPrimaryBrush}" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <TextBlock Grid.Row="1"
+                               Text="No classified traffic types recorded yet in the selected window."
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               FontSize="13"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               IsHitTestVisible="False"
+                               Visibility="{Binding TrafficTypes.Count, Converter={StaticResource CountZeroToVis}}" />
+                </Grid>
+            </Border>
+
+            <!-- TAB 4: ALERTS FEED -->
+            <Border Style="{StaticResource FrostedGlassCardStyle}"
+                    CornerRadius="14"
+                    Padding="0"
+                    Visibility="{Binding IsAlertsTab, Converter={StaticResource BoolToVis}}">
+                <Grid themes:ThemeManager.ClipCornerRadius="{StaticResource RadiusCardClipValue}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0"
+                            BorderBrush="{DynamicResource SubtleBorderBrush}"
+                            BorderThickness="0,0,0,1"
+                            Padding="16,10">
+                        <Grid>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="SECURITY &amp; FIRST-ACCESS ALERT FEED"
+                                           FontSize="11.5"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           VerticalAlignment="Center" />
+                                <Border Margin="10,0,0,0"
+                                        Padding="8,2"
+                                        CornerRadius="999"
+                                        Background="{DynamicResource WarnSurfaceBrush}"
+                                        BorderBrush="{DynamicResource WarnAccentBrush}"
+                                        BorderThickness="1"
+                                        Visibility="{Binding HasUnacknowledgedAlerts, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock FontFamily="{StaticResource MonoFont}"
+                                               FontSize="10.5"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource WarnAccentBrush}">
+                                        <Run Text="{Binding UnacknowledgedAlertCount, Mode=OneWay}" />
+                                        <Run Text=" unread" />
+                                    </TextBlock>
+                                </Border>
+                            </StackPanel>
+                            <Button Style="{StaticResource GlassChipButtonStyle}"
+                                    HorizontalAlignment="Right"
+                                    Command="{Binding AcknowledgeAllAlertsCommand}"
+                                    IsEnabled="{Binding HasUnacknowledgedAlerts}"
+                                    Content="Acknowledge All" />
+                        </Grid>
+                    </Border>
+
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding Alerts}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="{DynamicResource SubtleBorderBrush}"
+                                            BorderThickness="0,0,0,1"
+                                            Padding="16,11">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+                                                <Border CornerRadius="999" Padding="8,3" BorderThickness="1">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="{DynamicResource ActiveAccentDimBrush}" />
+                                                            <Setter Property="BorderBrush" Value="{DynamicResource ActiveAccentBrush}" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Severity}" Value="{x:Static monitor:MonitorAlertSeverity.Warning}">
+                                                                    <Setter Property="Background" Value="{DynamicResource WarnSurfaceBrush}" />
+                                                                    <Setter Property="BorderBrush" Value="{DynamicResource WarnAccentBrush}" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Severity}" Value="{x:Static monitor:MonitorAlertSeverity.Critical}">
+                                                                    <Setter Property="Background" Value="{DynamicResource DangerSurfaceBrush}" />
+                                                                    <Setter Property="BorderBrush" Value="{DynamicResource DangerAccentBrush}" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <TextBlock Text="{Binding Severity}"
+                                                               FontSize="10.5"
+                                                               FontWeight="SemiBold">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Foreground" Value="{DynamicResource ActiveAccentBrush}" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding Severity}" Value="{x:Static monitor:MonitorAlertSeverity.Warning}">
+                                                                        <Setter Property="Foreground" Value="{DynamicResource WarnAccentBrush}" />
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding Severity}" Value="{x:Static monitor:MonitorAlertSeverity.Critical}">
+                                                                        <Setter Property="Foreground" Value="{DynamicResource DangerAccentBrush}" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </Border>
+                                                <Border Margin="6,0,0,0"
+                                                        CornerRadius="999"
+                                                        Padding="8,3"
+                                                        Background="{DynamicResource ControlFillBrush}"
+                                                        BorderBrush="{DynamicResource SubtleBorderBrush}"
+                                                        BorderThickness="1">
+                                                    <TextBlock Text="{Binding KindLabel}"
+                                                               FontSize="10.5"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                </Border>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding Title}"
+                                                               FontWeight="SemiBold"
+                                                               FontSize="12.5"
+                                                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="{Binding SubjectName}"
+                                                               FontFamily="{StaticResource MonoFont}"
+                                                               FontSize="11"
+                                                               Foreground="{DynamicResource ActiveAccentBrush}"
+                                                               Margin="10,1,0,0"
+                                                               Visibility="{Binding SubjectName, Converter={StaticResource NullToVis}}" />
+                                                    <TextBlock Text="{Binding TargetDetail}"
+                                                               FontFamily="{StaticResource MonoFont}"
+                                                               FontSize="11"
+                                                               Foreground="{DynamicResource TextMutedBrush}"
+                                                               Margin="8,1,0,0"
+                                                               Visibility="{Binding TargetDetail, Converter={StaticResource NullToVis}}" />
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding Description}"
+                                                           FontSize="11.5"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                                                <TextBlock Text="{Binding TimestampLocalText}"
+                                                           FontFamily="{StaticResource MonoFont}"
+                                                           FontSize="11"
+                                                           Foreground="{DynamicResource TextMutedBrush}"
+                                                           VerticalAlignment="Center"
+                                                           Margin="0,0,10,0" />
+                                                <Button Style="{StaticResource GlassChipButtonStyle}"
+                                                        Command="{Binding DataContext.AcknowledgeAlertCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}"
+                                                        Content="Acknowledge"
+                                                        Visibility="{Binding IsAcknowledged, Converter={StaticResource InverseBoolToVis}}" />
+                                                <Border Style="{StaticResource GlassPillBadgeStyle}"
+                                                        Padding="9,4"
+                                                        Opacity="0.6"
+                                                        Visibility="{Binding IsAcknowledged, Converter={StaticResource BoolToVis}}">
+                                                    <TextBlock Text="Acknowledged"
+                                                               FontSize="10.5"
+                                                               Foreground="{DynamicResource TextMutedBrush}" />
+                                                </Border>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <TextBlock Grid.Row="1"
+                               Text="No first-access, ARP, DNS, or volume alerts recorded yet."
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               FontSize="13"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               IsHitTestVisible="False"
+                               Visibility="{Binding Alerts.Count, Converter={StaticResource CountZeroToVis}}" />
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>
