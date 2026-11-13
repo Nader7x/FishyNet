@@ -13,7 +13,9 @@ using FishyNet.Core.Formatting;
 using FishyNet.Core.Native;
 using FishyNet.Core.Packets;
 using FishyNet.Features;
+using FishyNet.Features.AppMonitor;
 using FishyNet.Features.SmartSchedules;
+using FishyNet.Themes;
 
 namespace FishyNet.ViewModels;
 
@@ -50,11 +52,16 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly UsageHistoryStore _historyStore;
     private readonly HostResolverService _hostResolver;
     private readonly TrayIconService _trayService;
+    private readonly TrafficTimelineStore _timelineStore;
+    private readonly IAppFirewallController _appFirewall;
+    private readonly AppTrafficTracker _appTracker;
+    private readonly WebsiteTrafficTracker _websiteTracker;
 
     private readonly Dispatcher _uiDispatcher;
     private readonly DispatcherTimer _telemetryTimer;
     private readonly CancellationTokenSource _backgroundCts = new();
     private int _ticksSinceHistoryFlush;
+    private int _ticksSinceAppMonitorRefresh;
     private double _peakDownloadBps;
     private bool _disposed;
 
@@ -144,6 +151,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     internal DeviceRegistry Registry => _registry;
     internal DeviceProfileStore ProfileStore => _profileStore;
+    internal CaptureEngine Engine => _engine;
+    internal AppTrafficTracker AppTracker => _appTracker;
+    internal WebsiteTrafficTracker WebsiteTracker => _websiteTracker;
+    internal TrafficTimelineStore TimelineStore => _timelineStore;
+
+    public AppMonitorViewModel AppMonitor { get; }
 
     public ObservableCollection<NetworkAdapterInfo> Adapters { get; } = [];
     public ObservableCollection<DeviceViewModel> Devices { get; } = [];
@@ -211,6 +224,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     }
 
     public MainViewModel(DeviceProfileStore profileStore)
+        : this(profileStore, null, null, null)
+    {
+    }
+
+    internal MainViewModel(
+        DeviceProfileStore profileStore,
+        IAppFirewallController? firewallController,
+        ISocketTableProvider? socketTableProvider,
+        IProcessMetadataResolver? metadataResolver)
     {
         _uiDispatcher = Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
         _registry = new DeviceRegistry();
@@ -223,6 +245,36 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _useBitsPerSecond = _profileStore.Preferences.UseBitsPerSecond;
         _closeToTray = _profileStore.Preferences.CloseToTray;
         _themePaletteId = NormalizePaletteId(_profileStore.Preferences.ThemePaletteId) ?? "obsidian_cyan";
+
+        if (Application.Current is not null)
+        {
+            ThemeManager.ApplyPalette(_themePaletteId);
+        }
+
+        _timelineStore = new TrafficTimelineStore();
+        _appFirewall = firewallController ?? new AppFirewallService();
+        _appTracker = new AppTrafficTracker(
+            socketTableProvider,
+            metadataResolver,
+            _appFirewall,
+            _timelineStore);
+        _websiteTracker = new WebsiteTrafficTracker(
+            _registry,
+            _appTracker,
+            IsDomainGloballyOrDeviceSinkholed);
+
+        _engine.RegisterTelemetryObserver(_appTracker);
+        _engine.RegisterTelemetryObserver(_websiteTracker);
+
+        AppMonitor = new AppMonitorViewModel(
+            _appTracker,
+            _websiteTracker,
+            _timelineStore,
+            _appFirewall,
+            HandleWebsiteSinkholeToggle,
+            LookupLiveDomainSinkholeState,
+            msg => StatusMessage = msg,
+            _useBitsPerSecond);
 
         bool hasSavedThrottleAll =
             _profileStore.Preferences.ThrottleAllEnabled ||
@@ -419,6 +471,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                         {
                             RefreshHistoryReport();
                         }
+                        else if (value == AppSection.AppMonitor)
+                        {
+                            AppMonitor.RefreshFromTrackers();
+                        }
                     }
                     finally
                     {
@@ -446,6 +502,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             {
                 _profileStore.Preferences.ThemePaletteId = normalized;
                 _profileStore.Save();
+                ThemeManager.ApplyPalette(normalized);
                 OnPropertyChanged(nameof(SelectedThemePalette));
                 ThemePaletteRequested?.Invoke(normalized);
             }
@@ -700,6 +757,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 {
                     vm.SetUnitMode(value);
                 }
+                AppMonitor.SetUnitMode(value);
             }
         }
     }
@@ -1735,6 +1793,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                         _engine.SpoofDevice(dev);
                     }
 
+                    if (!dev.IsLocalHost && !dev.IsGateway)
+                    {
+                        _timelineStore.RecordNewLanDeviceAlert(dev);
+                        AppMonitor.RefreshAlertsOnly();
+                    }
+
                     if (!dev.IsLocalHost && !dev.IsGateway && _profileStore.Preferences.NotifyOnNewDevice && Devices.Count > 3)
                     {
                         _trayService.ShowNotification(
@@ -1779,6 +1843,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                     IsArpAlertActive = true;
                     ArpGuardStatusText = $"ARP ALERT: {alert.OffendingMac}";
                     StatusMessage = alert.Description;
+                    _timelineStore.RecordArpSpoofAlert(alert);
+                    AppMonitor.RefreshAlertsOnly();
 
                     if (_profileStore.Preferences.NotifyOnArpAlert)
                     {
@@ -1811,8 +1877,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private void OnTelemetryTick(object? sender, EventArgs e)
     {
+        SampleTelemetryTick();
+    }
+
+    internal void SampleTelemetryTick(DateTime? utcNow = null)
+    {
         double totalRxBps = 0;
         double totalTxBps = 0;
+        long tickRxDeltaBytes = 0;
+        long tickTxDeltaBytes = 0;
         long sessionTotal = 0;
         long totalHttpTls = 0;
         long totalTcp = 0;
@@ -1827,6 +1900,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             NetworkDevice dev = vm.Model;
             (long rxDelta, long txDelta) = dev.ConsumeRateDeltas();
             (long rxHistDelta, long txHistDelta) = dev.ConsumeHistoryDeltas();
+
+            tickRxDeltaBytes += rxDelta;
+            tickTxDeltaBytes += txDelta;
 
             if (rxHistDelta > 0 || txHistDelta > 0)
             {
@@ -1917,6 +1993,29 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         UpdateTotalSpeedTickerText();
 
+        // Sample App & Website Monitor + Time-Machine rings every tick
+        DateTime sampleUtc = utcNow ?? DateTime.UtcNow;
+        AppTrafficSnapshot appSnapshot = _appTracker.SampleTick(sampleUtc);
+        long timelineRxBytes = Math.Max(tickRxDeltaBytes, appSnapshot.TotalDownloadBps);
+        long timelineTxBytes = Math.Max(tickTxDeltaBytes, appSnapshot.TotalUploadBps);
+        _timelineStore.RecordFromSnapshots(timelineRxBytes, timelineTxBytes, appSnapshot, sampleUtc);
+
+        if (IsAppMonitorSection)
+        {
+            _ticksSinceAppMonitorRefresh = 0;
+            AppMonitor.RefreshFromTrackers(sampleUtc);
+        }
+        else
+        {
+            AppMonitor.RefreshAlertsOnly();
+            _ticksSinceAppMonitorRefresh++;
+            if (_ticksSinceAppMonitorRefresh >= 5)
+            {
+                _ticksSinceAppMonitorRefresh = 0;
+                AppMonitor.RefreshFromTrackers(sampleUtc);
+            }
+        }
+
         _ticksSinceHistoryFlush++;
         if (_ticksSinceHistoryFlush >= 20)
         {
@@ -1927,6 +2026,175 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 RefreshHistoryReport();
             }
         }
+    }
+
+    private bool IsDomainGloballyOrDeviceSinkholed(Ipv4Address deviceIp, string domain)
+    {
+        if (string.IsNullOrWhiteSpace(domain))
+        {
+            return false;
+        }
+
+        NetworkDevice? dev = _registry.TryGetByIp(deviceIp);
+        if (dev is not null && dev.IsDomainBlocked(domain))
+        {
+            return true;
+        }
+
+        return IsDomainGloballyBlocked(domain);
+    }
+
+    private bool IsDomainGloballyBlocked(string domain)
+    {
+        List<string> globalBlocked = _profileStore.Preferences.GlobalBlockedDomains;
+        for (int i = 0; i < globalBlocked.Count; i++)
+        {
+            string rule = globalBlocked[i].Trim().TrimStart('*').TrimStart('.');
+            if (string.IsNullOrEmpty(rule))
+            {
+                continue;
+            }
+
+            if (domain.Equals(rule, StringComparison.OrdinalIgnoreCase) ||
+                (domain.EndsWith(rule, StringComparison.OrdinalIgnoreCase) &&
+                 domain.Length > rule.Length &&
+                 domain[^(rule.Length + 1)] == '.'))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool? LookupLiveDomainSinkholeState(string sourceHostIp, string domain)
+    {
+        if (string.IsNullOrWhiteSpace(domain))
+        {
+            return null;
+        }
+
+        if (IsDomainGloballyBlocked(domain))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(sourceHostIp) &&
+            Ipv4Address.TryParse(sourceHostIp, out Ipv4Address ip) &&
+            _registry.TryGetByIp(ip) is { } dev)
+        {
+            return dev.IsDomainBlocked(domain);
+        }
+
+        return null;
+    }
+
+    private (bool Success, bool IsNowSinkholed, string Message) HandleWebsiteSinkholeToggle(WebsiteTrafficRowViewModel row)
+    {
+        string domain = row.Domain.Trim().TrimStart('*').TrimStart('.').ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(domain))
+        {
+            return (false, row.IsSinkholed, "Cannot toggle DNS sinkhole: domain is empty.");
+        }
+
+        if (row.IsLocalHost)
+        {
+            return (false, false, $"DNS sinkhole applies to monitored LAN devices only ({domain}); use App Firewall to block local applications.");
+        }
+
+        DeviceViewModel? targetVm = FindLanDeviceByIp(row.SourceHostIp);
+        if (targetVm is not null)
+        {
+            bool currentlyBlocked = targetVm.Model.IsDomainBlocked(domain);
+            if (currentlyBlocked)
+            {
+                targetVm.RemoveBlockedDomain(domain);
+                return (true, false, $"Removed DNS sinkhole for '{domain}' on {targetVm.DisplayName}.");
+            }
+
+            targetVm.AddBlockedDomain(domain);
+            return (true, true, $"Added DNS sinkhole for '{domain}' on {targetVm.DisplayName}.");
+        }
+
+        var targets = new List<DeviceViewModel>();
+        for (int i = 0; i < Devices.Count; i++)
+        {
+            if (Devices[i].CanThrottle && Devices[i].IsSpoofed)
+            {
+                targets.Add(Devices[i]);
+            }
+        }
+
+        if (targets.Count == 0)
+        {
+            for (int i = 0; i < Devices.Count; i++)
+            {
+                if (Devices[i].CanThrottle)
+                {
+                    targets.Add(Devices[i]);
+                }
+            }
+        }
+
+        if (targets.Count == 0)
+        {
+            return (false, false, $"No monitored LAN devices available to sinkhole '{domain}'.");
+        }
+
+        bool allBlocked = true;
+        for (int i = 0; i < targets.Count; i++)
+        {
+            if (!targets[i].Model.IsDomainBlocked(domain))
+            {
+                allBlocked = false;
+                break;
+            }
+        }
+
+        bool targetState = !allBlocked;
+        var updatedModels = new List<NetworkDevice>(targets.Count);
+        for (int i = 0; i < targets.Count; i++)
+        {
+            DeviceViewModel vm = targets[i];
+            if (targetState)
+            {
+                if (!vm.BlockedDomains.Contains(domain))
+                {
+                    vm.BlockedDomains.Add(domain);
+                }
+                vm.Model.AddBlockedDomain(domain);
+            }
+            else
+            {
+                vm.BlockedDomains.Remove(domain);
+                vm.Model.RemoveBlockedDomain(domain);
+            }
+            updatedModels.Add(vm.Model);
+        }
+
+        _profileStore.UpdateBatch(updatedModels);
+        return (true, targetState, targetState
+            ? $"Added DNS sinkhole for '{domain}' across {targets.Count} LAN devices."
+            : $"Removed DNS sinkhole for '{domain}' across {targets.Count} LAN devices.");
+    }
+
+    private DeviceViewModel? FindLanDeviceByIp(string ipText)
+    {
+        if (string.IsNullOrWhiteSpace(ipText))
+        {
+            return null;
+        }
+
+        for (int i = 0; i < Devices.Count; i++)
+        {
+            DeviceViewModel vm = Devices[i];
+            if (vm.CanThrottle && string.Equals(vm.IpAddressText, ipText, StringComparison.OrdinalIgnoreCase))
+            {
+                return vm;
+            }
+        }
+
+        return null;
     }
 
     public void ToggleGamingBoost()
@@ -2017,6 +2285,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         _historyStore.Save();
         _profileStore.Save();
+        _engine.UnregisterTelemetryObserver(_appTracker);
+        _engine.UnregisterTelemetryObserver(_websiteTracker);
         _engine.Dispose();
         _trayService.Dispose();
     }
