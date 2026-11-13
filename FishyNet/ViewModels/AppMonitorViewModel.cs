@@ -22,6 +22,19 @@ public enum TrafficSourceFilter
     ThisPcOnly
 }
 
+public enum UsagePeriodPreset
+{
+    LiveSession,
+    Today,
+    Yesterday,
+    Last7Days,
+    Last30Days,
+    ThisMonth,
+    CustomRange
+}
+
+public sealed record UsagePeriodOption(UsagePeriodPreset Preset, string Label);
+
 /// <summary>
 /// Row presentation model for a tracked local application in the App &amp; Website Monitor.
 /// </summary>
@@ -487,9 +500,21 @@ public sealed class AppMonitorViewModel : ObservableObject
         "Other"
     ];
 
+    private static readonly IReadOnlyList<UsagePeriodOption> UsagePeriodOptions =
+    [
+        new UsagePeriodOption(UsagePeriodPreset.LiveSession, "Live Session"),
+        new UsagePeriodOption(UsagePeriodPreset.Today, "Today"),
+        new UsagePeriodOption(UsagePeriodPreset.Yesterday, "Yesterday"),
+        new UsagePeriodOption(UsagePeriodPreset.Last7Days, "Last 7 Days"),
+        new UsagePeriodOption(UsagePeriodPreset.Last30Days, "Last 30 Days"),
+        new UsagePeriodOption(UsagePeriodPreset.ThisMonth, "This Month"),
+        new UsagePeriodOption(UsagePeriodPreset.CustomRange, "Custom Range...")
+    ];
+
     private readonly AppTrafficTracker _appTracker;
     private readonly WebsiteTrafficTracker _websiteTracker;
     private readonly TrafficTimelineStore _timelineStore;
+    private readonly AppMonitorHistoryStore? _historyStore;
     private readonly IAppFirewallController? _firewallController;
     private readonly Func<WebsiteTrafficRowViewModel, (bool Success, bool IsNowSinkholed, string Message)>? _toggleSinkholeHandler;
     private readonly Func<string, string, bool?>? _liveSinkholeLookup;
@@ -498,6 +523,13 @@ public sealed class AppMonitorViewModel : ObservableObject
     private AppMonitorTab _selectedTab = AppMonitorTab.Apps;
     private TrafficSourceFilter _sourceFilter = TrafficSourceFilter.AllLanDevices;
     private TimeMachineWindow _selectedTimeWindow = TimeMachineWindow.Live;
+    private UsagePeriodOption _selectedUsagePeriod = UsagePeriodOptions[0];
+    private DateTime _customFromDate = DateTime.Today.AddDays(-6);
+    private DateTime _customToDate = DateTime.Today;
+    private bool _isClampingDates;
+    private string _activeDateRangeSummary = "Live Session";
+    private string _historicalTotalRxText = "0 B";
+    private string _historicalTotalTxText = "0 B";
     private string _searchQuery = string.Empty;
     private bool _useBitsPerSecond;
 
@@ -526,6 +558,8 @@ public sealed class AppMonitorViewModel : ObservableObject
 
     private AppTrafficSnapshot? _lastAppSnapshot;
     private WebsiteTrafficSnapshot? _lastAllWebSnapshot;
+    private AppTrafficSnapshot? _lastHistoricalAppSnapshot;
+    private WebsiteTrafficSnapshot? _lastHistoricalWebSnapshot;
     private DateTime? _lastRefreshUtc;
 
     public ObservableCollection<AppTrafficRowViewModel> Applications { get; } = [];
@@ -543,6 +577,7 @@ public sealed class AppMonitorViewModel : ObservableObject
     public RelayCommand AcknowledgeAlertCommand { get; }
     public RelayCommand AcknowledgeAllAlertsCommand { get; }
     public RelayCommand ClearMonitorHistoryCommand { get; }
+    public RelayCommand ApplyCustomDateRangeCommand { get; }
 
     public AppMonitorViewModel(
         AppTrafficTracker appTracker,
@@ -552,11 +587,13 @@ public sealed class AppMonitorViewModel : ObservableObject
         Func<WebsiteTrafficRowViewModel, (bool Success, bool IsNowSinkholed, string Message)>? toggleSinkholeHandler = null,
         Func<string, string, bool?>? liveSinkholeLookup = null,
         Action<string>? statusReporter = null,
-        bool useBitsPerSecond = false)
+        bool useBitsPerSecond = false,
+        AppMonitorHistoryStore? historyStore = null)
     {
         _appTracker = appTracker ?? throw new ArgumentNullException(nameof(appTracker));
         _websiteTracker = websiteTracker ?? throw new ArgumentNullException(nameof(websiteTracker));
         _timelineStore = timelineStore ?? throw new ArgumentNullException(nameof(timelineStore));
+        _historyStore = historyStore;
         _firewallController = firewallController;
         _toggleSinkholeHandler = toggleSinkholeHandler;
         _liveSinkholeLookup = liveSinkholeLookup;
@@ -578,6 +615,7 @@ public sealed class AppMonitorViewModel : ObservableObject
         AcknowledgeAlertCommand = new RelayCommand(ExecuteAcknowledgeAlert);
         AcknowledgeAllAlertsCommand = new RelayCommand(ExecuteAcknowledgeAllAlerts);
         ClearMonitorHistoryCommand = new RelayCommand(ExecuteClearMonitorHistory);
+        ApplyCustomDateRangeCommand = new RelayCommand(ExecuteApplyCustomDateRange);
 
         RefreshUnitTexts();
     }
@@ -630,6 +668,102 @@ public sealed class AppMonitorViewModel : ObservableObject
                 ApplyAppAndWebsiteFilters();
             }
         }
+    }
+
+    public IReadOnlyList<UsagePeriodOption> AvailableUsagePeriods => UsagePeriodOptions;
+
+    public UsagePeriodOption SelectedUsagePeriod
+    {
+        get => _selectedUsagePeriod;
+        set
+        {
+            UsagePeriodOption next = value ?? UsagePeriodOptions[0];
+            if (SetProperty(ref _selectedUsagePeriod, next))
+            {
+                OnPropertyChanged(nameof(IsCustomDateRange));
+                OnPropertyChanged(nameof(IsHistoricalMode));
+                RefreshForUsagePeriodChange();
+            }
+        }
+    }
+
+    public bool IsCustomDateRange => _selectedUsagePeriod.Preset == UsagePeriodPreset.CustomRange;
+    public bool IsHistoricalMode => _selectedUsagePeriod.Preset != UsagePeriodPreset.LiveSession;
+
+    public DateTime CustomFromDate
+    {
+        get => _customFromDate;
+        set
+        {
+            DateTime normalized = value.Date;
+            if (SetProperty(ref _customFromDate, normalized) && !_isClampingDates)
+            {
+                if (_customFromDate > _customToDate)
+                {
+                    _isClampingDates = true;
+                    try
+                    {
+                        CustomToDate = _customFromDate;
+                    }
+                    finally
+                    {
+                        _isClampingDates = false;
+                    }
+                }
+
+                if (IsCustomDateRange)
+                {
+                    RefreshForUsagePeriodChange();
+                }
+            }
+        }
+    }
+
+    public DateTime CustomToDate
+    {
+        get => _customToDate;
+        set
+        {
+            DateTime normalized = value.Date;
+            if (SetProperty(ref _customToDate, normalized) && !_isClampingDates)
+            {
+                if (_customToDate < _customFromDate)
+                {
+                    _isClampingDates = true;
+                    try
+                    {
+                        CustomFromDate = _customToDate;
+                    }
+                    finally
+                    {
+                        _isClampingDates = false;
+                    }
+                }
+
+                if (IsCustomDateRange)
+                {
+                    RefreshForUsagePeriodChange();
+                }
+            }
+        }
+    }
+
+    public string ActiveDateRangeSummary
+    {
+        get => _activeDateRangeSummary;
+        private set => SetProperty(ref _activeDateRangeSummary, value);
+    }
+
+    public string HistoricalTotalRxText
+    {
+        get => _historicalTotalRxText;
+        private set => SetProperty(ref _historicalTotalRxText, value);
+    }
+
+    public string HistoricalTotalTxText
+    {
+        get => _historicalTotalTxText;
+        private set => SetProperty(ref _historicalTotalTxText, value);
     }
 
     public TimeMachineWindow SelectedTimeWindow
@@ -959,6 +1093,12 @@ public sealed class AppMonitorViewModel : ObservableObject
 
     private void RefreshFromCurrentSnapshots()
     {
+        if (IsHistoricalMode)
+        {
+            RefreshHistoricalMode();
+            return;
+        }
+
         AppTrafficSnapshot appSnap = _lastAppSnapshot ?? _appTracker.GetSnapshot(_lastRefreshUtc);
         WebsiteTrafficSnapshot allWebSnap = _lastAllWebSnapshot ?? _websiteTracker.GetSnapshot(localOnlyFilter: null, _lastRefreshUtc);
 
@@ -975,9 +1115,116 @@ public sealed class AppMonitorViewModel : ObservableObject
 
     private void ApplyAppAndWebsiteFilters()
     {
+        if (IsHistoricalMode)
+        {
+            if (_lastHistoricalAppSnapshot is null || _lastHistoricalWebSnapshot is null)
+            {
+                RefreshHistoricalMode();
+                return;
+            }
+
+            ApplyAppAndWebsiteFilters(_lastHistoricalAppSnapshot, _lastHistoricalWebSnapshot);
+            return;
+        }
+
         AppTrafficSnapshot appSnap = _lastAppSnapshot ?? _appTracker.GetSnapshot(_lastRefreshUtc);
         WebsiteTrafficSnapshot allWebSnap = _lastAllWebSnapshot ?? _websiteTracker.GetSnapshot(localOnlyFilter: null, _lastRefreshUtc);
         ApplyAppAndWebsiteFilters(appSnap, allWebSnap);
+    }
+
+    private void RefreshForUsagePeriodChange()
+    {
+        if (IsHistoricalMode)
+        {
+            RefreshHistoricalMode();
+            return;
+        }
+
+        ActiveDateRangeSummary = "Live Session";
+        HistoricalTotalRxText = "0 B";
+        HistoricalTotalTxText = "0 B";
+        _lastHistoricalAppSnapshot = null;
+        _lastHistoricalWebSnapshot = null;
+
+        RefreshFromCurrentSnapshots();
+        RefreshTimeline();
+    }
+
+    private void RefreshHistoricalMode()
+    {
+        (DateOnly fromDate, DateOnly toDate) = ResolveActiveDateRange();
+        ActiveDateRangeSummary = fromDate == toDate
+            ? fromDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            : $"{fromDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)} → {toDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}";
+
+        (AppTrafficSnapshot appSnap, WebsiteTrafficSnapshot webSnap) = BuildHistoricalSnapshots(fromDate, toDate);
+        _lastHistoricalAppSnapshot = appSnap;
+        _lastHistoricalWebSnapshot = webSnap;
+
+        long totalRx = Math.Max(appSnap.TotalDownloadBytes, webSnap.TotalDownloadBytes);
+        long totalTx = Math.Max(appSnap.TotalUploadBytes, webSnap.TotalUploadBytes);
+        HistoricalTotalRxText = BandwidthFormatter.FormatBytes(totalRx);
+        HistoricalTotalTxText = BandwidthFormatter.FormatBytes(totalTx);
+        WindowTotalRxText = HistoricalTotalRxText;
+        WindowTotalTxText = HistoricalTotalTxText;
+
+        ActiveAppCount = appSnap.Applications.Count;
+        TotalAppDownloadRateText = BandwidthFormatter.FormatRate(0, _useBitsPerSecond);
+        TotalAppUploadRateText = BandwidthFormatter.FormatRate(0, _useBitsPerSecond);
+
+        ApplyAppAndWebsiteFilters(appSnap, webSnap);
+        RefreshTrafficTypesBreakdown(appSnap, webSnap);
+    }
+
+    private (DateOnly FromDate, DateOnly ToDate) ResolveActiveDateRange()
+    {
+        DateOnly todayUtc = DateOnly.FromDateTime(DateTime.UtcNow);
+        return _selectedUsagePeriod.Preset switch
+        {
+            UsagePeriodPreset.Today => (todayUtc, todayUtc),
+            UsagePeriodPreset.Yesterday => (todayUtc.AddDays(-1), todayUtc.AddDays(-1)),
+            UsagePeriodPreset.Last7Days => (todayUtc.AddDays(-6), todayUtc),
+            UsagePeriodPreset.Last30Days => (todayUtc.AddDays(-29), todayUtc),
+            UsagePeriodPreset.ThisMonth => (new DateOnly(todayUtc.Year, todayUtc.Month, 1), todayUtc),
+            UsagePeriodPreset.CustomRange => (DateOnly.FromDateTime(_customFromDate), DateOnly.FromDateTime(_customToDate)),
+            _ => (todayUtc, todayUtc)
+        };
+    }
+
+    private (AppTrafficSnapshot AppSnap, WebsiteTrafficSnapshot WebSnap) BuildHistoricalSnapshots(DateOnly fromDate, DateOnly toDate)
+    {
+        DateTime nowUtc = DateTime.UtcNow;
+        if (_historyStore is null)
+        {
+            return (
+                new AppTrafficSnapshot(nowUtc, [], 0, 0, 0, 0, 0),
+                new WebsiteTrafficSnapshot(nowUtc, [], 0, 0, 0));
+        }
+
+        IReadOnlyList<AppTrafficEntry> apps = _historyStore.QueryApplications(fromDate, toDate);
+        long appRx = 0;
+        long appTx = 0;
+        for (int i = 0; i < apps.Count; i++)
+        {
+            appRx += apps[i].TotalDownloadBytes;
+            appTx += apps[i].TotalUploadBytes;
+        }
+
+        bool? localOnlyFilter = _sourceFilter == TrafficSourceFilter.ThisPcOnly ? true : null;
+        IReadOnlyList<WebsiteTrafficEntry> websites = _historyStore.QueryWebsites(fromDate, toDate, localOnlyFilter);
+        long webRx = 0;
+        long webTx = 0;
+        var uniqueDomains = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < websites.Count; i++)
+        {
+            webRx += websites[i].DownloadBytes;
+            webTx += websites[i].UploadBytes;
+            uniqueDomains.Add(websites[i].Domain);
+        }
+
+        return (
+            new AppTrafficSnapshot(nowUtc, apps, 0, 0, appRx, appTx, 0),
+            new WebsiteTrafficSnapshot(nowUtc, websites, webRx, webTx, uniqueDomains.Count));
     }
 
     private void ApplyAppAndWebsiteFilters(AppTrafficSnapshot appSnap, WebsiteTrafficSnapshot allWebSnap)
@@ -1112,8 +1359,11 @@ public sealed class AppMonitorViewModel : ObservableObject
         _rawTimelineBuckets = snapshot.Buckets;
 
         PeakTrafficText = BandwidthFormatter.FormatRate(snapshot.PeakTotalBps, _useBitsPerSecond);
-        WindowTotalRxText = BandwidthFormatter.FormatBytes(snapshot.TotalDownloadBytes);
-        WindowTotalTxText = BandwidthFormatter.FormatBytes(snapshot.TotalUploadBytes);
+        if (!IsHistoricalMode)
+        {
+            WindowTotalRxText = BandwidthFormatter.FormatBytes(snapshot.TotalDownloadBytes);
+            WindowTotalTxText = BandwidthFormatter.FormatBytes(snapshot.TotalUploadBytes);
+        }
 
         // 1. Series descriptors (max 5 slots aligned with StackedTrafficTimelineControl; Brush = null picks theme DynamicResources)
         if (snapshot.SeriesLabels.Count > 0)
@@ -1614,11 +1864,26 @@ public sealed class AppMonitorViewModel : ObservableObject
         ReportStatus("Acknowledged all App & Security alerts.");
     }
 
+    private void ExecuteApplyCustomDateRange()
+    {
+        if (!IsCustomDateRange)
+        {
+            SelectedUsagePeriod = UsagePeriodOptions[^1];
+            return;
+        }
+
+        RefreshForUsagePeriodChange();
+    }
+
     private void ExecuteClearMonitorHistory()
     {
         _timelineStore.Clear();
         _appTracker.Clear();
         _websiteTracker.Clear();
+        _historyStore?.Clear();
+
+        _lastHistoricalAppSnapshot = null;
+        _lastHistoricalWebSnapshot = null;
 
         _isInspectLocked = false;
         _inspectedIndex = -1;

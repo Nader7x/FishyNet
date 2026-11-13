@@ -558,6 +558,211 @@ public sealed class AppMonitorViewModelTests : IDisposable
         return frame;
     }
 
+    [Fact]
+    public void UsagePeriodDropdown_SwitchesBetweenLiveAndHistoricalPresets_AndQueriesStore()
+    {
+        string historyPath = Path.Combine(Path.GetTempPath(), $"fishynet_vm_hist_{Guid.NewGuid():N}.json");
+        try
+        {
+            var historyStore = new AppMonitorHistoryStore(historyPath);
+            DateTime todayUtc = DateTime.UtcNow.Date.AddHours(10);
+            DateTime yesterdayUtc = todayUtc.AddDays(-1);
+            DateTime threeDaysAgoUtc = todayUtc.AddDays(-3);
+
+            var chromeOld = new AppTrafficEntry(
+                "chrome.exe", 101, "chrome.exe", "Google Chrome", @"C:\chrome.exe", "Google LLC", null,
+                0, 0, 1_000, 200, ["TLS"], ["github.com"], 1, false, false, threeDaysAgoUtc, threeDaysAgoUtc);
+            var steamYesterday = new AppTrafficEntry(
+                "steam.exe", 102, "steam.exe", "Steam", @"C:\steam.exe", "Valve", null,
+                0, 0, 5_000, 500, ["QUIC"], ["steampowered.com"], 1, false, false, yesterdayUtc, yesterdayUtc);
+            var discordToday = new AppTrafficEntry(
+                "discord.exe", 103, "discord.exe", "Discord", @"C:\discord.exe", "Discord Inc.", null,
+                0, 0, 2_000, 400, ["TLS"], ["discord.gg"], 1, false, false, todayUtc, todayUtc);
+
+            var webOld = new WebsiteTrafficEntry("w1", "github.com", "140.82.121.6", "TLS/443", "This PC", "192.168.1.10", true, "chrome.exe", 1_000, 200, 1, threeDaysAgoUtc, false);
+            var webYesterday = new WebsiteTrafficEntry("w2", "steampowered.com", "23.1.2.3", "QUIC/443", "This PC", "192.168.1.10", true, "steam.exe", 5_000, 500, 2, yesterdayUtc, false);
+            var webToday = new WebsiteTrafficEntry("w3", "discord.gg", "162.159.130.234", "TLS/443", "This PC", "192.168.1.10", true, "discord.exe", 2_000, 400, 3, todayUtc, false);
+
+            historyStore.RecordSample(
+                threeDaysAgoUtc,
+                new AppTrafficSnapshot(threeDaysAgoUtc, [chromeOld], 0, 0, 1_000, 200, 0),
+                new WebsiteTrafficSnapshot(threeDaysAgoUtc, [webOld], 1_000, 200, 1));
+            historyStore.RecordSample(
+                yesterdayUtc,
+                new AppTrafficSnapshot(yesterdayUtc, [steamYesterday], 0, 0, 5_000, 500, 0),
+                new WebsiteTrafficSnapshot(yesterdayUtc, [webYesterday], 5_000, 500, 1));
+            historyStore.RecordSample(
+                todayUtc,
+                new AppTrafficSnapshot(todayUtc, [discordToday], 0, 0, 2_000, 400, 0),
+                new WebsiteTrafficSnapshot(todayUtc, [webToday], 2_000, 400, 1));
+
+            var appTracker = new AppTrafficTracker(new FakeSocketTableProvider([]), new FakeProcessMetadataResolver([]));
+            var websiteTracker = new WebsiteTrafficTracker();
+            var timeline = new TrafficTimelineStore();
+
+            var vm = new AppMonitorViewModel(appTracker, websiteTracker, timeline, historyStore: historyStore);
+
+            // Default: Live Session
+            Assert.Equal(UsagePeriodPreset.LiveSession, vm.SelectedUsagePeriod.Preset);
+            Assert.False(vm.IsHistoricalMode);
+            Assert.False(vm.IsCustomDateRange);
+            Assert.Equal("Live Session", vm.ActiveDateRangeSummary);
+            Assert.Equal(7, vm.AvailableUsagePeriods.Count);
+
+            // Switch to Today
+            vm.SelectedUsagePeriod = vm.AvailableUsagePeriods.First(p => p.Preset == UsagePeriodPreset.Today);
+            Assert.True(vm.IsHistoricalMode);
+            Assert.False(vm.IsCustomDateRange);
+            Assert.Equal(DateOnly.FromDateTime(todayUtc).ToString("yyyy-MM-dd"), vm.ActiveDateRangeSummary);
+            Assert.Equal("discord.exe", Assert.Single(vm.Applications).AppName);
+            Assert.Equal("discord.gg", Assert.Single(vm.Websites).Domain);
+            Assert.Equal(1, vm.ActiveAppCount);
+            Assert.Equal(1, vm.UniqueDomainCount);
+            Assert.NotEqual("0 B", vm.HistoricalTotalRxText);
+            Assert.NotEqual("0 B", vm.HistoricalTotalTxText);
+
+            // Switch to Yesterday
+            vm.SelectedUsagePeriod = vm.AvailableUsagePeriods.First(p => p.Preset == UsagePeriodPreset.Yesterday);
+            Assert.Equal("steam.exe", Assert.Single(vm.Applications).AppName);
+            Assert.Equal("steampowered.com", Assert.Single(vm.Websites).Domain);
+
+            // Switch to Last 7 Days
+            vm.SelectedUsagePeriod = vm.AvailableUsagePeriods.First(p => p.Preset == UsagePeriodPreset.Last7Days);
+            Assert.Equal(3, vm.Applications.Count);
+            Assert.Equal(3, vm.Websites.Count);
+            Assert.Contains("→", vm.ActiveDateRangeSummary);
+
+            // Switch back to Live Session
+            vm.SelectedUsagePeriod = vm.AvailableUsagePeriods.First(p => p.Preset == UsagePeriodPreset.LiveSession);
+            Assert.False(vm.IsHistoricalMode);
+            Assert.Equal("Live Session", vm.ActiveDateRangeSummary);
+            Assert.Empty(vm.Applications);
+            Assert.Empty(vm.Websites);
+        }
+        finally
+        {
+            if (File.Exists(historyPath)) File.Delete(historyPath);
+        }
+    }
+
+    [Fact]
+    public void CustomDateRange_FiltersMultiDayHistory_ClampsDates_AndSupportsSearchAndSourceFilter()
+    {
+        string historyPath = Path.Combine(Path.GetTempPath(), $"fishynet_vm_custom_{Guid.NewGuid():N}.json");
+        try
+        {
+            var historyStore = new AppMonitorHistoryStore(historyPath);
+            DateTime day1 = new(2026, 11, 10, 12, 0, 0, DateTimeKind.Utc);
+            DateTime day2 = new(2026, 11, 11, 12, 0, 0, DateTimeKind.Utc);
+            DateTime day3 = new(2026, 11, 12, 12, 0, 0, DateTimeKind.Utc);
+
+            var chromeDay1 = new AppTrafficEntry("chrome.exe", 1, "chrome.exe", "Google Chrome", @"C:\chrome.exe", "Google LLC", null, 0, 0, 1_000, 100, ["TLS"], ["github.com"], 1, false, false, day1, day1);
+            var chromeDay2 = new AppTrafficEntry("chrome.exe", 1, "chrome.exe", "Google Chrome", @"C:\chrome.exe", "Google LLC", null, 0, 0, 3_000, 300, ["TLS"], ["github.com"], 1, false, false, day2, day2);
+            var edgeDay3 = new AppTrafficEntry("msedge.exe", 2, "msedge.exe", "Microsoft Edge", @"C:\msedge.exe", "Microsoft", null, 0, 0, 9_000, 900, ["TLS"], ["bing.com"], 1, false, false, day3, day3);
+
+            var localWebDay1 = new WebsiteTrafficEntry("w1", "github.com", "140.82.121.6", "TLS/443", "This PC", "192.168.1.10", true, "chrome.exe", 1_000, 100, 1, day1, false);
+            var lanWebDay2 = new WebsiteTrafficEntry("w2", "netflix.com", "52.1.2.3", "TLS/443", "Bedroom-TV", "192.168.1.50", false, "", 4_000, 300, 2, day2, false);
+            var localWebDay3 = new WebsiteTrafficEntry("w3", "bing.com", "204.79.197.200", "TLS/443", "This PC", "192.168.1.10", true, "msedge.exe", 9_000, 900, 1, day3, false);
+
+            historyStore.RecordSample(day1, new AppTrafficSnapshot(day1, [chromeDay1], 0, 0, 1_000, 100, 0), new WebsiteTrafficSnapshot(day1, [localWebDay1], 1_000, 100, 1));
+            historyStore.RecordSample(day2, new AppTrafficSnapshot(day2, [chromeDay2], 0, 0, 2_000, 200, 0), new WebsiteTrafficSnapshot(day2, [lanWebDay2], 4_000, 300, 1));
+            historyStore.RecordSample(day3, new AppTrafficSnapshot(day3, [edgeDay3], 0, 0, 9_000, 900, 0), new WebsiteTrafficSnapshot(day3, [localWebDay3], 9_000, 900, 1));
+
+            var vm = new AppMonitorViewModel(
+                new AppTrafficTracker(new FakeSocketTableProvider([]), new FakeProcessMetadataResolver([])),
+                new WebsiteTrafficTracker(),
+                new TrafficTimelineStore(),
+                historyStore: historyStore);
+
+            vm.SelectedUsagePeriod = vm.AvailableUsagePeriods.First(p => p.Preset == UsagePeriodPreset.CustomRange);
+            Assert.True(vm.IsCustomDateRange);
+            Assert.True(vm.IsHistoricalMode);
+
+            vm.CustomFromDate = new DateTime(2026, 11, 10);
+            vm.CustomToDate = new DateTime(2026, 11, 11);
+            Assert.Equal("2026-11-10 → 2026-11-11", vm.ActiveDateRangeSummary);
+
+            // Aggregated chrome across day1 + day2 = 3000 RX, 300 TX (msedge on day3 excluded)
+            AppTrafficRowViewModel chromeRow = Assert.Single(vm.Applications);
+            Assert.Equal("chrome.exe", chromeRow.AppName);
+            Assert.Equal(3_000, chromeRow.TotalDownloadBytes);
+            Assert.Equal(300, chromeRow.TotalUploadBytes);
+            Assert.Equal(2, vm.Websites.Count);
+
+            // SourceFilter: ThisPcOnly excludes Bedroom-TV netflix.com
+            vm.SetSourceFilterCommand.Execute("ThisPcOnly");
+            Assert.Equal("github.com", Assert.Single(vm.Websites).Domain);
+
+            vm.SetSourceFilterCommand.Execute("AllLanDevices");
+            Assert.Equal(2, vm.Websites.Count);
+
+            // SearchQuery in historical mode
+            vm.SearchQuery = "netflix";
+            Assert.Empty(vm.Applications);
+            Assert.Equal("netflix.com", Assert.Single(vm.Websites).Domain);
+
+            vm.SearchQuery = string.Empty;
+            Assert.Single(vm.Applications);
+            Assert.Equal(2, vm.Websites.Count);
+
+            // Date clamping: CustomFromDate > CustomToDate clamps CustomToDate up
+            vm.CustomFromDate = new DateTime(2026, 11, 12);
+            Assert.Equal(new DateTime(2026, 11, 12), vm.CustomToDate);
+            Assert.Equal("2026-11-12", vm.ActiveDateRangeSummary);
+            Assert.Equal("msedge.exe", Assert.Single(vm.Applications).AppName);
+
+            // Date clamping: CustomToDate < CustomFromDate clamps CustomFromDate down
+            vm.CustomToDate = new DateTime(2026, 11, 10);
+            Assert.Equal(new DateTime(2026, 11, 10), vm.CustomFromDate);
+            vm.ApplyCustomDateRangeCommand.Execute(null);
+            Assert.Equal("chrome.exe", Assert.Single(vm.Applications).AppName);
+            Assert.Equal(1_000, vm.Applications[0].TotalDownloadBytes);
+        }
+        finally
+        {
+            if (File.Exists(historyPath)) File.Delete(historyPath);
+        }
+    }
+
+    [Fact]
+    public void ClearMonitorHistoryCommand_ClearsHistoricalStoreAndResetsHistoricalView()
+    {
+        string historyPath = Path.Combine(Path.GetTempPath(), $"fishynet_vm_clear_{Guid.NewGuid():N}.json");
+        try
+        {
+            var historyStore = new AppMonitorHistoryStore(historyPath);
+            DateTime todayUtc = DateTime.UtcNow.Date.AddHours(10);
+            var app = new AppTrafficEntry("chrome.exe", 1, "chrome.exe", "Google Chrome", @"C:\chrome.exe", "Google LLC", null, 0, 0, 2_000, 500, ["TLS"], ["github.com"], 1, false, false, todayUtc, todayUtc);
+            var web = new WebsiteTrafficEntry("w1", "github.com", "140.82.121.6", "TLS/443", "This PC", "192.168.1.10", true, "chrome.exe", 2_000, 500, 1, todayUtc, false);
+
+            historyStore.RecordSample(
+                todayUtc,
+                new AppTrafficSnapshot(todayUtc, [app], 0, 0, 2_000, 500, 0),
+                new WebsiteTrafficSnapshot(todayUtc, [web], 2_000, 500, 1));
+
+            var vm = new AppMonitorViewModel(
+                new AppTrafficTracker(new FakeSocketTableProvider([]), new FakeProcessMetadataResolver([])),
+                new WebsiteTrafficTracker(),
+                new TrafficTimelineStore(),
+                historyStore: historyStore);
+
+            vm.SelectedUsagePeriod = vm.AvailableUsagePeriods.First(p => p.Preset == UsagePeriodPreset.Today);
+            Assert.Single(vm.Applications);
+            Assert.Single(vm.Websites);
+
+            vm.ClearMonitorHistoryCommand.Execute(null);
+
+            Assert.Empty(vm.Applications);
+            Assert.Empty(vm.Websites);
+            Assert.Empty(historyStore.QueryApplications(DateOnly.MinValue, DateOnly.MaxValue));
+            Assert.Empty(historyStore.QueryWebsites(DateOnly.MinValue, DateOnly.MaxValue));
+        }
+        finally
+        {
+            if (File.Exists(historyPath)) File.Delete(historyPath);
+        }
+    }
+
     public void Dispose()
     {
         if (File.Exists(_tempProfileFile))

@@ -53,6 +53,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly HostResolverService _hostResolver;
     private readonly TrayIconService _trayService;
     private readonly TrafficTimelineStore _timelineStore;
+    private readonly AppMonitorHistoryStore _appHistoryStore;
     private readonly IAppFirewallController _appFirewall;
     private readonly AppTrafficTracker _appTracker;
     private readonly WebsiteTrafficTracker _websiteTracker;
@@ -155,6 +156,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     internal AppTrafficTracker AppTracker => _appTracker;
     internal WebsiteTrafficTracker WebsiteTracker => _websiteTracker;
     internal TrafficTimelineStore TimelineStore => _timelineStore;
+    internal AppMonitorHistoryStore AppHistoryStore => _appHistoryStore;
 
     public AppMonitorViewModel AppMonitor { get; }
 
@@ -232,13 +234,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         DeviceProfileStore profileStore,
         IAppFirewallController? firewallController,
         ISocketTableProvider? socketTableProvider,
-        IProcessMetadataResolver? metadataResolver)
+        IProcessMetadataResolver? metadataResolver,
+        string? appHistoryPath = null)
     {
         _uiDispatcher = Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
         _registry = new DeviceRegistry();
         _engine = new CaptureEngine(_registry);
         _profileStore = profileStore ?? new DeviceProfileStore();
         _historyStore = new UsageHistoryStore();
+        _appHistoryStore = new AppMonitorHistoryStore(appHistoryPath);
         _hostResolver = new HostResolverService(_registry);
         _trayService = new TrayIconService();
 
@@ -274,7 +278,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             HandleWebsiteSinkholeToggle,
             LookupLiveDomainSinkholeState,
             msg => StatusMessage = msg,
-            _useBitsPerSecond);
+            _useBitsPerSecond,
+            _appHistoryStore);
 
         bool hasSavedThrottleAll =
             _profileStore.Preferences.ThrottleAllEnabled ||
@@ -1996,6 +2001,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         // Sample App & Website Monitor + Time-Machine rings every tick
         DateTime sampleUtc = utcNow ?? DateTime.UtcNow;
         AppTrafficSnapshot appSnapshot = _appTracker.SampleTick(sampleUtc);
+        WebsiteTrafficSnapshot webSnapshot = _websiteTracker.GetSnapshot(localOnlyFilter: null, timestampUtc: sampleUtc);
+        _appHistoryStore.RecordSample(sampleUtc, appSnapshot, webSnapshot);
         long timelineRxBytes = Math.Max(tickRxDeltaBytes, appSnapshot.TotalDownloadBps);
         long timelineTxBytes = Math.Max(tickTxDeltaBytes, appSnapshot.TotalUploadBps);
         _timelineStore.RecordFromSnapshots(timelineRxBytes, timelineTxBytes, appSnapshot, sampleUtc);
@@ -2021,6 +2028,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             _ticksSinceHistoryFlush = 0;
             _historyStore.Save();
+            _appHistoryStore.Flush();
             if (_activeWorkspaceTab == 1)
             {
                 RefreshHistoryReport();
@@ -2284,6 +2292,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
 
         _historyStore.Save();
+        _appHistoryStore.Flush();
         _profileStore.Save();
         _engine.UnregisterTelemetryObserver(_appTracker);
         _engine.UnregisterTelemetryObserver(_websiteTracker);
