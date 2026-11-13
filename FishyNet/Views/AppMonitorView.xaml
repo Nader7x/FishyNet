@@ -14,13 +14,14 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Row 0: Sub-toolbar (Tabs, Source Filter, Counters, Search, Clear History) -->
+        <!-- Row 0: Sub-toolbar (Tabs, Source Filter, Counters, Search, Clear History + Usage Period) -->
         <Border Grid.Row="0"
                 Style="{StaticResource FrostedGlassCardStyle}"
                 CornerRadius="14"
                 Padding="10,7"
                 Margin="0,0,0,10">
-            <Grid>
+            <StackPanel>
+                <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
@@ -176,6 +177,116 @@
                             ToolTip="Reset recorded timeline buckets, app flows, domains, and monitor alerts" />
                 </StackPanel>
             </Grid>
+
+            <!-- Usage Period Dropdown, Calendar Date-Range Picker & Historical Indicator -->
+            <WrapPanel Orientation="Horizontal" Margin="0,7,0,0">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Usage Period"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               VerticalAlignment="Center"
+                               Margin="2,0,8,0" />
+                    <ComboBox x:Name="UsagePeriodComboBox"
+                              MinWidth="150"
+                              Height="28"
+                              ItemsSource="{Binding AvailableUsagePeriods}"
+                              SelectedItem="{Binding SelectedUsagePeriod, Mode=TwoWay}"
+                              DisplayMemberPath="Label"
+                              VerticalAlignment="Center" />
+                </StackPanel>
+
+                <!-- Custom Calendar Date-Range Picker -->
+                <Border Background="{DynamicResource ControlFillBrush}"
+                        BorderBrush="{DynamicResource SubtleBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="8,3"
+                        Margin="8,0,0,0"
+                        VerticalAlignment="Center"
+                        Visibility="{Binding IsCustomDateRange, Converter={StaticResource BoolToVis}}">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="From"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,6,0" />
+                        <DatePicker x:Name="CustomFromDatePicker"
+                                    Width="128"
+                                    SelectedDate="{Binding CustomFromDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    VerticalAlignment="Center" />
+                        <TextBlock Text="→"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   VerticalAlignment="Center"
+                                   Margin="7,0" />
+                        <TextBlock Text="To"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,6,0" />
+                        <DatePicker x:Name="CustomToDatePicker"
+                                    Width="128"
+                                    SelectedDate="{Binding CustomToDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    VerticalAlignment="Center" />
+                        <Button Style="{StaticResource GlassChipButtonStyle}"
+                                themes:ThemeManager.IsActive="True"
+                                Command="{Binding ApplyCustomDateRangeCommand}"
+                                Content="Apply"
+                                Margin="8,0,0,0"
+                                Padding="10,4"
+                                VerticalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Active Historical Period Indicator -->
+                <Border Style="{StaticResource GlassPillBadgeStyle}"
+                        BorderBrush="{DynamicResource ActiveAccentBrush}"
+                        Margin="8,0,0,0"
+                        Padding="10,4"
+                        VerticalAlignment="Center"
+                        Visibility="{Binding IsHistoricalMode, Converter={StaticResource BoolToVis}}">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Ellipse Width="6"
+                                 Height="6"
+                                 Fill="{DynamicResource ActiveAccentBrush}"
+                                 VerticalAlignment="Center"
+                                 Margin="0,0,6,0" />
+                        <TextBlock Text="{Binding ActiveDateRangeSummary}"
+                                   FontSize="11"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Text="•"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   VerticalAlignment="Center"
+                                   Margin="7,0" />
+                        <TextBlock Text="RX "
+                                   FontSize="10.5"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding HistoricalTotalRxText}"
+                                   FontFamily="{StaticResource MonoFont}"
+                                   FontSize="11"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource RxAccentBrush}"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,8,0" />
+                        <TextBlock Text="TX "
+                                   FontSize="10.5"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding HistoricalTotalTxText}"
+                                   FontFamily="{StaticResource MonoFont}"
+                                   FontSize="11"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TxAccentBrush}"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+            </WrapPanel>
+            </StackPanel>
         </Border>
 
         <!-- Row 1: Contextual Security / First-Access Alert Banner -->
