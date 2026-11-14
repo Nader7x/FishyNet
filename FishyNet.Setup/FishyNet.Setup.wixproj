@@ -1,6 +1,6 @@
 <Project Sdk="WixToolset.Sdk/7.0.1">
   <PropertyGroup>
-    <InstallerVersion Condition="'$(InstallerVersion)' == ''">3.3.1</InstallerVersion>
+    <InstallerVersion Condition="'$(InstallerVersion)' == ''">3.3.2</InstallerVersion>
     <OutputName>FishyNet-$(InstallerVersion)-win-x64</OutputName>
     <OutputType>Package</OutputType>
     <Platform>x64</Platform>
