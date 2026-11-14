@@ -78,34 +78,9 @@ public static class ThemeManager
         var newPalette = new ResourceDictionary { Source = paletteUri };
 
         Collection<ResourceDictionary> appMerged = app.Resources.MergedDictionaries;
-        ResourceDictionary? darkThemeDict = FindDarkThemeDictionary(appMerged);
-
-        if (darkThemeDict is not null)
-        {
-            ReplaceOrAppendPalette(darkThemeDict.MergedDictionaries, newPalette);
-            RemovePaletteDictionaries(appMerged);
-        }
-        else
-        {
-            ReplaceOrAppendPalette(appMerged, newPalette);
-        }
+        ReplaceOrAppendPalette(appMerged, newPalette);
 
         PaletteChanged?.Invoke(normalizedId);
-    }
-
-    private static ResourceDictionary? FindDarkThemeDictionary(Collection<ResourceDictionary> dictionaries)
-    {
-        for (int i = 0; i < dictionaries.Count; i++)
-        {
-            ResourceDictionary dict = dictionaries[i];
-            string? src = dict.Source?.OriginalString;
-            if (!string.IsNullOrEmpty(src) && src.Contains("DarkTheme.xaml", StringComparison.OrdinalIgnoreCase))
-            {
-                return dict;
-            }
-        }
-
-        return null;
     }
 
     private static void ReplaceOrAppendPalette(Collection<ResourceDictionary> dictionaries, ResourceDictionary newPalette)
@@ -128,18 +103,6 @@ public static class ThemeManager
         else
         {
             dictionaries.Add(newPalette);
-        }
-    }
-
-    private static void RemovePaletteDictionaries(Collection<ResourceDictionary> dictionaries)
-    {
-        for (int i = dictionaries.Count - 1; i >= 0; i--)
-        {
-            string? src = dictionaries[i].Source?.OriginalString;
-            if (!string.IsNullOrEmpty(src) && src.Contains("Palettes/", StringComparison.OrdinalIgnoreCase))
-            {
-                dictionaries.RemoveAt(i);
-            }
         }
     }
 

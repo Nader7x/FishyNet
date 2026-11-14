@@ -3,6 +3,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Globalization;
 using System.IO;
+using System.Net.NetworkInformation;
 using System.Text;
 using System.Windows;
 using System.Windows.Data;
@@ -61,6 +62,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly Dispatcher _uiDispatcher;
     private readonly DispatcherTimer _telemetryTimer;
     private readonly CancellationTokenSource _backgroundCts = new();
+    private readonly object _adapterRefreshLock = new();
+    private CancellationTokenSource? _adapterRefreshCts;
+    private bool _isSyncingAdapters;
     private int _ticksSinceHistoryFlush;
     private int _ticksSinceAppMonitorRefresh;
     private double _peakDownloadBps;
@@ -661,7 +665,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         get => _selectedAdapter;
         set
         {
-            if (SetProperty(ref _selectedAdapter, value) && value is not null)
+            if (SetProperty(ref _selectedAdapter, value) && value is not null && !_isSyncingAdapters)
             {
                 BindToSelectedAdapter(value);
             }
@@ -985,25 +989,142 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _ = Task.Run(() => ProcessRegistryEventsAsync(_backgroundCts.Token));
         _ = Task.Run(() => RunPeriodicLatencySweepAsync(_backgroundCts.Token));
 
-        IReadOnlyList<NetworkAdapterInfo> foundAdapters = CaptureEngine.DiscoverSuitableAdapters();
-        foreach (NetworkAdapterInfo nic in foundAdapters)
-        {
-            Adapters.Add(nic);
-        }
+        NetworkChange.NetworkAddressChanged += OnNetworkEnvironmentChanged;
+        NetworkChange.NetworkAvailabilityChanged += OnNetworkEnvironmentChanged;
 
-        if (Adapters.Count > 0)
-        {
-            string? prefId = _profileStore.Preferences.PreferredAdapterId;
-            NetworkAdapterInfo chosen = Adapters.FirstOrDefault(a => a.Id == prefId) ?? Adapters[0];
-            SelectedAdapter = chosen;
-        }
-        else
-        {
-            StatusMessage = "No active IPv4 network adapter with a default gateway was found.";
-        }
+        ApplyDiscoveredAdapters(CaptureEngine.DiscoverSuitableAdapters());
 
         RefreshHistoryReport();
         _telemetryTimer.Start();
+    }
+
+    private void OnNetworkEnvironmentChanged(object? sender, EventArgs e)
+    {
+        if (_disposed) return;
+
+        CancellationToken ct;
+        lock (_adapterRefreshLock)
+        {
+            _adapterRefreshCts?.Cancel();
+            _adapterRefreshCts?.Dispose();
+            _adapterRefreshCts = CancellationTokenSource.CreateLinkedTokenSource(_backgroundCts.Token);
+            ct = _adapterRefreshCts.Token;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(500, ct).ConfigureAwait(false);
+                IReadOnlyList<NetworkAdapterInfo> foundAdapters = CaptureEngine.DiscoverSuitableAdapters();
+                DispatchToUiOrInline(() => ApplyDiscoveredAdapters(foundAdapters));
+            }
+            catch (OperationCanceledException)
+            {
+                // Superseded by a newer network change event or shutdown
+            }
+        }, ct);
+    }
+
+    private void ApplyDiscoveredAdapters(IReadOnlyList<NetworkAdapterInfo> foundAdapters)
+    {
+        if (_disposed) return;
+
+        NetworkAdapterInfo? previousSelected = _selectedAdapter;
+        NetworkAdapterInfo? activeEngineAdapter = _engine.ActiveAdapter;
+
+        _isSyncingAdapters = true;
+        try
+        {
+            var foundIds = new HashSet<string>(foundAdapters.Count, StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < foundAdapters.Count; i++)
+            {
+                foundIds.Add(foundAdapters[i].Id);
+            }
+
+            for (int i = Adapters.Count - 1; i >= 0; i--)
+            {
+                if (!foundIds.Contains(Adapters[i].Id))
+                {
+                    Adapters.RemoveAt(i);
+                }
+            }
+
+            for (int i = 0; i < foundAdapters.Count; i++)
+            {
+                NetworkAdapterInfo target = foundAdapters[i];
+                int existingIdx = -1;
+                for (int j = i; j < Adapters.Count; j++)
+                {
+                    if (string.Equals(Adapters[j].Id, target.Id, StringComparison.OrdinalIgnoreCase))
+                    {
+                        existingIdx = j;
+                        break;
+                    }
+                }
+
+                if (existingIdx < 0)
+                {
+                    Adapters.Insert(i, target);
+                }
+                else
+                {
+                    if (existingIdx != i)
+                    {
+                        Adapters.Move(existingIdx, i);
+                    }
+
+                    if (Adapters[i] != target)
+                    {
+                        Adapters[i] = target;
+                    }
+                }
+            }
+
+            if (Adapters.Count == 0)
+            {
+                SelectedAdapter = null;
+            }
+            else
+            {
+                NetworkAdapterInfo? chosen = null;
+                if (previousSelected is not null)
+                {
+                    chosen = Adapters.FirstOrDefault(a => string.Equals(a.Id, previousSelected.Id, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (chosen is null)
+                {
+                    string? prefId = _profileStore.Preferences.PreferredAdapterId;
+                    chosen = Adapters.FirstOrDefault(a => string.Equals(a.Id, prefId, StringComparison.OrdinalIgnoreCase)) ?? Adapters[0];
+                }
+
+                SelectedAdapter = chosen;
+            }
+        }
+        finally
+        {
+            _isSyncingAdapters = false;
+        }
+
+        if (_selectedAdapter is null)
+        {
+            if (activeEngineAdapter is not null)
+            {
+                _engine.StopAll();
+                IsRedirecting = false;
+                Devices.Clear();
+                SelectedDevice = null;
+            }
+
+            StatusMessage = "No active IPv4 network adapter with a default gateway was found.";
+            return;
+        }
+
+        if (activeEngineAdapter != _selectedAdapter)
+        {
+            BindToSelectedAdapter(_selectedAdapter);
+        }
     }
 
     public void NotifyMinimizedToTray()
@@ -2270,6 +2391,16 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+
+        NetworkChange.NetworkAddressChanged -= OnNetworkEnvironmentChanged;
+        NetworkChange.NetworkAvailabilityChanged -= OnNetworkEnvironmentChanged;
+
+        lock (_adapterRefreshLock)
+        {
+            _adapterRefreshCts?.Cancel();
+            _adapterRefreshCts?.Dispose();
+            _adapterRefreshCts = null;
+        }
 
         _telemetryTimer.Stop();
         _backgroundCts.Cancel();
