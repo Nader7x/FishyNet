@@ -10,7 +10,11 @@ High-performance LAN bandwidth shaper, real-time traffic analyzer, and historica
 
 - **Zero-Allocation Native `wpcap.dll` (Npcap) Packet Engine**: Directly wraps Npcap kernel ring buffers using `.NET 10` `LibraryImport` and `Span<byte>` for zero-copy packet inspection and in-place Ethernet header rewriting.
 - **Human-Friendly Speed & Volume Representations**: Auto-scales throughput (`B/s`, `KB/s`, `MB/s`, `GB/s`) with a one-click toggle to ISP bit-rates (`bps`, `Kbps`, `Mbps`, `Gbps`), proportional visual utilization bars, and `% of Cap` indicators.
-- **Precision Token-Bucket Rate Limiter & Presets**: Smooth sub-millisecond token-bucket bandwidth shaping (eliminating legacy 1-second burst-stall cutoffs) with one-click presets (**Unrestricted**, **Gaming Priority**, **SD Streaming**, **Strict Throttle**, **Quarantine**).
+- **Precision Token-Bucket Rate Limiter & Presets**: Smooth sub-millisecond token-bucket bandwidth shaping (eliminating legacy 1-second burst-stall cutoffs) with **Throttle All**, multi-device batch throttling, and one-click presets (**Unrestricted**, **Gaming Priority**, **SD Streaming**, **Strict Throttle**, **Quarantine**).
+- **App & Website Monitor**: Real-time per-process and per-domain traffic breakdown (SNI/HTTP/DNS), timeline charts, alerts, and per-app Windows Firewall blocking.
+- **Dynamic Network Adapter Discovery**: Automatically detects newly connected adapters (e.g., plugging in Ethernet while on Wi-Fi) and refreshes IP/gateway changes without restarting.
+- **Frosted Acrylic UI & Live Theme Switching**: Switch between **Obsidian Cyan**, **Graphite Mint**, **Carbon Cobalt**, and **Smoked Onyx** palettes live at runtime, plus a compact always-on-top **Mini HUD**.
+- **Built-in Npcap Setup**: Automatically detects if Npcap is missing and offers one-click download and installation of the official Npcap driver directly from the app.
 - **Historical Device Usage Ledger (Today / Past Week / Past Month / All-Time)**: Persistent MAC-indexed daily usage ledger (`%LocalAppData%\FishyNet\usage_history.json`) with interactive stacked daily bar charts, LAN traffic share percentages, daily data quotas, and CSV export.
 - **Background System Tray Operation**: Minimize or close to the Windows System Tray with live throughput tooltips, toast notifications, and a right-click quick-action menu.
 - **Advanced Network & Security Tools**:
@@ -22,7 +26,7 @@ High-performance LAN bandwidth shaper, real-time traffic analyzer, and historica
 ## Requirements
 
 - **Windows 10 / 11 (x64)**
-- **[Npcap](https://npcap.com/)** installed (with WinPcap API-compatible mode enabled)
+- **[Npcap](https://npcap.com/)** (FishyNet can download and launch the official Npcap installer automatically if it is not yet installed)
 - **Administrator Privileges** (configured automatically via `app.manifest`)
 
 ## Build & Test
@@ -47,4 +51,4 @@ pwsh .\build-installer.ps1 -Configuration Release -OutputDir artifacts
 ## CI/CD & Releases
 
 - **Continuous Integration (`.github/workflows/ci.yml`)**: Automatically triggers on pushes and pull requests to `main` to build the solution, execute tests, and validate the WiX MSI installer package.
-- **GitHub Releases (`.github/workflows/release.yml`)**: Automatically publishes full releases on GitHub when a tag matching `v*` (e.g. `v3.3.0`) is pushed, or via manual `workflow_dispatch`. Generates both the standalone MSI installer and a portable zip archive accompanied by SHA-256 checksums.
+- **GitHub Releases (`.github/workflows/release.yml`)**: Automatically publishes full releases on GitHub when a tag matching `v*` (e.g. `v3.3.3`) is pushed, or via manual `workflow_dispatch`. Generates both the standalone MSI installer and a portable zip archive accompanied by SHA-256 checksums.
