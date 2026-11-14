@@ -2180,8 +2180,16 @@
                                    FontFamily="{StaticResource MonoFont}"
                                    FontSize="11"
                                    Foreground="{DynamicResource HealthyAccentBrush}"
-                                   Margin="0,0,14,0"
+                                   Margin="0,0,8,0"
                                    VerticalAlignment="Center" />
+                        <Button Content="Install Npcap"
+                                Command="{Binding InstallNpcapCommand}"
+                                Visibility="{Binding IsNpcapMissing, Converter={StaticResource BoolToVis}}"
+                                Padding="8,2"
+                                FontSize="10.5"
+                                Margin="0,0,12,0"
+                                VerticalAlignment="Center"
+                                ToolTip="Download and install the official Npcap packet capture driver" />
                         <CheckBox IsChecked="{Binding CloseToTray, Mode=TwoWay}"
                                   Content="Close to tray"
                                   FontSize="11"

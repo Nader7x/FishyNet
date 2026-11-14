@@ -78,6 +78,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private bool _isRedirecting;
     private bool _isScanning;
+    private bool _isNpcapMissing;
+    private bool _isInstallingNpcap;
     private bool _useBitsPerSecond;
     private bool _closeToTray = true;
     private string _statusMessage = "Initializing packet engine...";
@@ -224,6 +226,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand BatchUnblockCommand { get; }
     public RelayCommand BatchClearCapsCommand { get; }
     public RelayCommand ClearBatchSelectionCommand { get; }
+    public RelayCommand InstallNpcapCommand { get; }
 
     public MainViewModel() : this(new DeviceProfileStore())
     {
@@ -388,6 +391,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         MinimizeWindowCommand = new RelayCommand(() => RequestMinimize?.Invoke());
         MaximizeWindowCommand = new RelayCommand(() => RequestMaximizeRestore?.Invoke());
         CloseWindowCommand = new RelayCommand(() => RequestClose?.Invoke());
+        InstallNpcapCommand = new RelayCommand(() => _ = InstallNpcapAsync(), () => !IsInstallingNpcap);
 
         ApplyThrottleAllCommand = new RelayCommand(ApplyThrottleAll);
         ClearAllThrottlesCommand = new RelayCommand(ClearAllThrottles);
@@ -798,6 +802,24 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         private set => SetProperty(ref _driverStatusText, value);
     }
 
+    public bool IsNpcapMissing
+    {
+        get => _isNpcapMissing;
+        private set => SetProperty(ref _isNpcapMissing, value);
+    }
+
+    public bool IsInstallingNpcap
+    {
+        get => _isInstallingNpcap;
+        private set
+        {
+            if (SetProperty(ref _isInstallingNpcap, value))
+            {
+                InstallNpcapCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
     public string TotalDownloadText
     {
         get => _totalDownloadText;
@@ -970,11 +992,28 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         if (WpcapNative.IsDriverAvailable(out string version))
         {
+            IsNpcapMissing = false;
             DriverStatusText = version;
         }
         else
         {
+            IsNpcapMissing = true;
             DriverStatusText = "Npcap / WinPcap Not Detected";
+            StatusMessage = "Npcap driver is missing. Click 'Install Npcap' in the status bar to install it.";
+
+            if (Application.Current is not null)
+            {
+                MessageBoxResult choice = MessageBox.Show(
+                    "Npcap packet capture driver is not installed on this PC.\n\nWould you like FishyNet to download and launch the official Npcap installer now?",
+                    "Npcap Required",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (choice == MessageBoxResult.Yes)
+                {
+                    _ = InstallNpcapAsync();
+                }
+            }
         }
 
         _trayService.Initialize();
@@ -996,6 +1035,39 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         RefreshHistoryReport();
         _telemetryTimer.Start();
+    }
+
+    private async Task InstallNpcapAsync()
+    {
+        if (IsInstallingNpcap) return;
+
+        IsInstallingNpcap = true;
+        try
+        {
+            NpcapInstallResult result = await NpcapInstallerService.DownloadAndInstallAsync(
+                status => DispatchToUiOrInline(() => StatusMessage = status),
+                _backgroundCts.Token);
+
+            if (WpcapNative.IsDriverAvailable(out string version))
+            {
+                IsNpcapMissing = false;
+                DriverStatusText = version;
+                StatusMessage = "Npcap installed successfully. Binding network adapter...";
+                ApplyDiscoveredAdapters(CaptureEngine.DiscoverSuitableAdapters());
+            }
+            else
+            {
+                StatusMessage = result.Message;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Ignore on shutdown
+        }
+        finally
+        {
+            IsInstallingNpcap = false;
+        }
     }
 
     private void OnNetworkEnvironmentChanged(object? sender, EventArgs e)
