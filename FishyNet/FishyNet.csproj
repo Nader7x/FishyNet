@@ -11,7 +11,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>app.ico</ApplicationIcon>
-    <Version>3.3.2</Version>
+    <Version>3.3.3</Version>
     <Product>FishyNet</Product>
     <AssemblyTitle>FishyNet</AssemblyTitle>
     <Description>FishyNet — High-performance LAN bandwidth shaper &amp; usage telemetry</Description>

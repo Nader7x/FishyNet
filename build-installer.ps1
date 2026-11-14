@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$Configuration = "Release",
-    [string]$Version = "3.3.2",
+    [string]$Version = "3.3.3",
     [string]$OutputDir = "artifacts"
 )
 
